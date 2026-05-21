@@ -23,11 +23,11 @@
 )
 
 // ---- Typography ----
-#set text(font: ("New Computer Modern", "STIX Two Math", "Noto Serif CJK SC"), size: 10pt, lang: "en")
+#set text(font: ("New Computer Modern"), size: 10pt, lang: "en")
 #set par(justify: true, leading: 0.65em, first-line-indent: 1.5em)
 
 // ---- Headings ----
-#set heading(numbering: "1.1", align: left)
+#set heading(numbering: "1.1")
 #show heading.where(level: 1): it => {
   v(1.2em)
   set text(size: 11pt, weight: "bold")
@@ -56,11 +56,10 @@
 #set math.equation(numbering: "(1)")
 
 // ---- Figures & Tables ----
-#set figure(numbering: "Fig. 1", caption-position: bottom)
-#set table(stroke: 0.5pt, fill: (x, y) => if y == 0 { luma(230) } else { none }, inset: 4pt, align: center + horizon)
+#set figure(numbering: "1")
+#set table(stroke: 0.5pt, inset: 4pt, align: center + horizon)
 
 // ---- Code ----
-#set raw(font: "JetBrains Mono", size: 8.5pt)
 
 // ---- Bibliography ----
 #show bibliography: it => {
@@ -74,21 +73,20 @@
   it
 }
 
-#set link(color: rgb("#1a5fb4"))
 
 // ============================================================
-// TITLE PAGE
+|// TITLE PAGE
 // ============================================================
 #align(center, v(2cm))
 #set text(size: 14pt, weight: "bold")
-#smallcaps("Flywheel Rotor Fatigue Life & Dynamic Reliability Assessment")
+#smallcaps("Flywheel Rotor Structural Integrity Assessment")
 
 #v(0.3cm)
 #set text(size: 11pt)
-#smallcaps("for AI Mega-Cluster DC-Bus Systems")
+#smallcaps("for AI Mega-Cluster DC-Bus Systems — Version 1.1")
 
 #v(0.6cm)
-#set text(size: 10pt, weight: "normal")
+#set text(size: 10pt, weight: "regular")
 Technical Engineering Report \
 Date: 2026-05-21 \
 Material: 25Cr2Ni4MoV | Max Speed: 20,000 rpm | 800V DC Bus | SiC DC/DC + SST
@@ -106,7 +104,7 @@ Material: 25Cr2Ni4MoV | Max Speed: 20,000 rpm | 800V DC Bus | SiC DC/DC + SST
   (10 Hz--10 kHz) via GPU Compute Spikes. A full-chain coupling fatigue analysis
   framework is established. Key results demonstrate infinite fatigue initiation life
   (safety margin $>$ 11.8$times$) and bounded crack propagation
-  ($Delta K is = 1.38 MPa$cdot$m^(1/2)$ vs. threshold 5--8), yielding a total
+  ($Delta K = 1.38 "MPa"·m^(1/2)$ vs. threshold 5--8), yielding a total
   design life exceeding 20 years under standard NDT conditions.
 ]
 
@@ -124,1335 +122,737 @@ Material: 25Cr2Ni4MoV | Max Speed: 20,000 rpm | 800V DC Bus | SiC DC/DC + SST
 // ============================================================
 #outline(title: [#smallcaps("Contents")])
 
-#pagebreak()
-
-# Introduction
-
-== Background
-
-The rapid scaling of AI computing infrastructure has introduced unprecedented challenges in power delivery and backup energy storage. Modern GPU mega-clusters, comprising 10,000+ accelerators, exhibit highly dynamic power consumption profiles characterized by broadband fluctuations spanning 10 Hz to 10 kHz @google-borg-2021. These fluctuations arise from computation synchronization events (All-Reduce, gradient checkpointing), inference request burstiness, and thermal management cycles, creating a fundamentally different load regime compared to traditional data center UPS applications.
-
-== Problem Statement
-
-Flywheel energy storage systems (FESS) coupled to 800V DC buses through SiC DC/DC converters and solid-state transformers (SST) have emerged as a promising solution for AI data center power quality management and short-duration backup. However, the existing fatigue life assessment framework for flywheel rotors is predicated on narrowband grid-frequency excitation (0.01--0.5 Hz), which is fundamentally inadequate for AI data center conditions.
-
-The critical engineering questions are:
-
-1. _Fatigue initiation_: Under broadband random torque excitation, does the rotor's fatigue life remain infinite as in traditional UPS scenarios?
-2. _Crack propagation_: What is the crack growth life from manufacturing defects under AI data center load spectra?
-3. _Power scalability_: Does the fatigue life conclusion hold across the 500 kW--3200 kW power range?
-
-== Research Scope
-
-This report establishes a full-chain coupling fatigue analysis framework covering:
-
-- _Section 2_: System modeling -- GPU power spectral density, SiC electromagnetic coupling
-- _Section 3_: Torsional vibration and Campbell analysis
-- _Section 4_: Steady-state and dynamic stress decomposition
-- _Section 5_: PSD-based broadband random fatigue assessment
-- _Section 6_: Paris-law crack propagation analysis
-- _Section 7_: Quantitative comparison with traditional UPS methodology
-- _Section 8_: Engineering conclusions and design recommendations
-
-== Methodology Overview
-
-The analysis methodology integrates multiple engineering domains:
-
-- _Power electronics_: SiC DC/DC converter ripple modeling with space vector PWM harmonics
-- _Structural dynamics_: Continuum torsional vibration with Rayleigh-Ritz modal truncation
-- _Fatigue mechanics_: PSD-based Dirlik broadband rainflow with Basquin S-N curve
-- _Fracture mechanics_: Paris-Erdogan law with random load spectral integration
-
-All calculations are based on the 25Cr2Ni4MoV forged steel rotor ($\phi$430 mm, 20,000 rpm) from Honghui Energy's commercial FESS product, with material properties validated against ASTM A471 and GB/T 3310-2019 standards.
-
-# System Modeling
-
-== Flywheel Rotor Physical Parameters
-
-Table 1 summarizes the core physical parameters of the Honghui Energy 25Cr2Ni4MoV forged steel rotor.
-
-== AI GPU Cluster Power Spectrum Model
-
-=== GPU Load Temporal Hierarchy
-
-The defining characteristic of AI data center loads is their multiscale temporal structure. Define the instantaneous GPU cluster bus power as:
-
-$  P_{GPU}(t) = P_{base} + \sum_{i=1}^{N} \Delta P_i \cdot \text{Rect}_{[t_i, t_i+\tau_i]}(t) + P_{noise}(t)  $
-
-where $P_{base}$ is the baseline power, $\Delta P_i$ is the amplitude of the $i$-th power pulse, and $P_{noise}(t)$ represents residual stochastic components.
-
-#table(columns: 4,
-  [Event], [Timescale], [Power Change], [Mechanism],
-  [:------], [:----------], [:-------------], [:----------],
-  [All-Reduce sync], [100 $\mu$s--10 ms], [+30\%--+80\%], [Gradient aggregation],
-  [Checkpoint I/O], [10--100 ms], [+20\%--+50\%], [PCIe/NVLink burst],
-  [Forward/Backward], [1--100 ms], [±10\%--±30\%], [Pipeline alternation],
-  [Batch transition], [10--200 ms], [-40\%---80\%], [Pipeline drain],
-  [Inference spike], [1 $\mu$s--1 ms], [+5\%--+30\%], [Request scaling],
-)
-
-For mega-clusters, these fluctuations superimpose rather than cancel. Field measurements show that normalized spectral density of total cluster power exceeds $-20$ dB across 10 Hz--1 kHz @google-borg-2021; @meta-isca-2023.
-
-=== GPU Power PSD Model
-
-Define the normalized power spectral density of a single GPU:
-
-$  S_{GPU}(f) = \frac{P_{pk}^2}{2\pi f_c} \cdot \frac{1}{1 + (f/f_c)^2} + \sum_{k=1}^{N} A_k \cdot \delta(f - f_k) + W(f)  $
-
-where:
-- _Term 1_: Lorentzian continuum, cutoff $f_c \approx 50$ Hz
-- _Term 2_: Discrete line spectrum at computed rhythms $f_k$
-- _Term 3_: White noise floor $W(f) = \sigma_{noise}^2$
-
-For the mega-cluster, the equivalent PSD becomes:
-
-$  S_{cluster}(f) = N_{GPU} \cdot S_{GPU}(f) \cdot \Gamma(f)  $
-
-where $\Gamma(f)$ is the coherence function, $\Gamma \approx 0.3\text{--}0.6$ at low frequencies ($<$ 50 Hz) and $\Gamma \to N_{GPU}^{-1}$ at high frequencies.
-
-# Electromagnetic Torque and Torsional Vibration
-
-== SiC DC/DC Coupling Path
-
-The flywheel system interfaces with the 800V DC bus via a SiC MOSFET DC/DC converter. The SiC switching frequency $f_{sw} = 20\text{--}50$ kHz introduces high-frequency torque ripple that must be modeled.
-
-The total electromagnetic torque is expressed as:
-
-$  T_e(t) = T_{e0} + \Delta T_{e,load}(t) + \Delta T_{e,ripple}(t)  $
-
-=== Load-Coupled Torque
-
-GPU power fluctuations transmitted through the DC/DC converter to the flywheel motor produce:
-
-$  \Delta T_{e,load}(t) = \frac{1}{\omega_{FW}} \cdot \frac{P_{DC,bus}(t)}{\eta_{DC/DC}} \approx \frac{P_{GPU}(t)}{\omega_{FW} \cdot \eta_{DC/DC}}  $
-
-where $\omega_{FW}$ is the flywheel angular velocity and $\eta_{DC/DC} \approx 97.5\%$ is the SiC converter efficiency.
-
-=== PWM Ripple Torque
-
-The PWM modulation introduces current harmonics that generate ripple torque:
-
-$  \Delta T_{e,ripple}(t) = \frac{3}{2} p \left[ \Psi_{PM} \cdot \tilde{i}_q(t) + (L_d - L_q) \cdot \tilde{i}_d(t) \cdot \tilde{i}_q(t) \right]  $
-
-For a 500 kW PMSM flywheel motor, $|\Delta T_{e,ripple}|_{rms} \approx 0.5\text{--}2.5$ N$\cdot$m.
-
-=== Synthesized Torque Spectrum
-
-The combined torque perturbation PSD is:
-
-$  S_{Te}(f) = \frac{1}{\omega_{FW}^2 \eta^2} \cdot S_{GPU}(f) \cdot |H_{DC/DC}(f)|^2 + \sum_{m,n} \delta(f - (mf_{sw} \pm n f_e)) \cdot \Gamma_{ripple}^2  $
-
-== Torsional Vibration Model
-
-=== Continuum Torsion Equation
-
-The rotor is modeled as a continuous torsional system:
-
-$  GJ(x)\frac{\partial^2 \theta(x,t)}{\partial x^2} - \rho J_p(x)\frac{\partial^2 \theta(x,t)}{\partial t^2} - c(x)\frac{\partial \theta(x,t)}{\partial t} = -T_e(t) \cdot \delta(x - x_e)  $
-
-where $\theta(x,t)$ is the angular displacement, $G$ the shear modulus (79.5 GPa for 25Cr2Ni4MoV), and $x_e$ the torque application point.
-
-=== Modal Truncation
-
-Discretization via Rayleigh-Ritz yields the N-DOF system:
-
-$  \mathbf{J}\ddot{\boldsymbol{\theta}}(t) + \mathbf{C}\dot{\boldsymbol{\theta}}(t) + \mathbf{K}\boldsymbol{\theta}(t) = \mathbf{T}_e(t)  $
-
-=== Natural Frequencies
-
-#table(columns: 4,
-  [Mode], [$f_n$ (Hz)], [Description],
-  [:-----], [:-----------], [:------------],
-  [1st], [18--35], [1st torsion],
-  [2nd], [120--200], [2nd torsion (bending coupling)],
-  [3rd], [350--500], [Higher torsion],
-  [4th+], [$>$ 800], [Local modes],
-)
-
-== Campbell Diagram Analysis
-
-Traditional UPS flywheel excitation is limited to 1$\times$/2$\times$ rotational frequency. AI data center flywheels introduce broadband non-synchronous excitation:
-
-- GPU PSD continuum (10 Hz--1 kHz)
-- PWM sidebands at $f_{sw} \pm n f_e$
-
-_Design requirement_: The first torsional frequency must exceed $f_{n1} > 100$ Hz to avoid the GPU PSD high-energy band. Alternatively, virtual torsional damping via SiC DC/DC control can be employed.
-
-# Stress Analysis and Load Decomposition
-
-== Steady-State Centrifugal Stress
-
-At rated speed (18,000 rpm, $\omega = 1885$ rad/s), centrifugal stress dominates. For a uniform solid disk:
-
-$  \sigma_r(r) = \frac{3+\nu}{8}\rho\omega^2(R^2 - r^2)  $
-
-$  \sigma_\theta(r) = \frac{3+\nu}{8}\rho\omega^2\left(R^2 - \frac{1+3\nu}{3+\nu}r^2\right)  $
-
-Maximum stress at the rotor center:
-
-$  \sigma_{max} = \sigma_r(0) = \sigma_\theta(0) = \frac{3+\nu}{8}\rho\omega^2R^2  $
-
-Substituting $R = 0.215$ m for the $\phi$430 mm rotor:
-
-$  \sigma_{max,centrifugal} \approx \frac{3+0.3}{8} \times 7850 \times (1885)^2 \times 0.215^2 \approx 532 \text{ MPa}  $
-
-== Steady Stress Distribution
-
-#table(columns: 4,
-  [Location], [Stress (MPa)], [Source],
-  [:---------], [:-------------], [:-------],
-  [Shaft center], [500--657], [FE (Honghui)],
-  [Disk root ($R$ = 0.35 m)], [340--400], [FE],
-  [Shaft shoulder transition], [260--320], [FE],
-  [Bearing fit surface], [120--200], [FE],
-)
-
-== Dynamic Stress Component
-
-Dynamic stress arises from electromagnetic torque fluctuations causing torsional shear stress:
-
-$  \tau_{xy}(t,x) = \frac{T(t) \cdot r}{J(x)}  $
-
-The von Mises equivalent alternating stress amplitude:
-
-$  \sigma_{vM,alt}(x) = \sqrt{3} \cdot \tau_{xy,alt}(x)  $
-
-=== Correction Factors
-
-Critical stress concentration locations require correction:
-
-- _Fatigue notch factor_: $K_f = 1 + q(K_t - 1)$, where $q \approx 0.85\text{--}0.95$
-- _Size factor_: $\varepsilon \approx 0.6\text{--}0.75$ for sections $>$ 200 mm
-- _Surface factor_: $\beta \approx 0.85\text{--}0.95$ for ground surfaces
-
-Effective dynamic stress amplitude:
-
-$  \sigma_{a,eff} = \frac{K_f}{\varepsilon \beta} \cdot \sigma_{a,nominal}  $
-
-=== Numerical Example (500 kW Rotor)
-
-Assuming the torque fluctuation $T_{alt} \approx 2\%$ of rated torque ($\Delta T \approx 16$ N$\cdot$m):
-
-#table(columns: 4,
-  [Parameter], [Value], [Unit],
-  [:----------], [:------], [:-----],
-  [Torque fluctuation $\Delta T$], [16], [N$\cdot$m],
-  [Shear stress amplitude $\tau_{alt}$], [6.6], [MPa],
-  [von Mises stress $\sigma_{vM}$], [11.5], [MPa],
-  [$K_f/(\varepsilon\beta)$], [3.0], [—],
-  [_Effective stress $\sigma_{a,eff}$_], [_34.7_], [_MPa_],
-  [Safety margin vs. $S_e$ (550 MPa)], [_15.8$\times$_], [—],
-)
-
-# Fatigue Life Assessment
-
-== Material S-N Curve
-
-The 25Cr2Ni4MoV S-N curve follows the Basquin equation:
-
-$  \sigma_a(N_f) = \sigma_f' \cdot (2N_f)^b  $
-
-_Key fatigue parameters_ (quenched + tempered):
-
-#table(columns: 4,
-  [Parameter], [Value], [Source],
-  [:----------], [:------], [:-------],
-  [$\sigma_f'$], [3,890 MPa], [~$3.7\sigma_b$],
-  [$b$], [$-0.085$], [High-strength alloy],
-  [Fatigue limit $S_e$ ($N = 10^7$)], [550 MPa], [Rotating bending test],
-  [Torsional fatigue limit $\tau_e$], [318 MPa], [$\tau_e \approx 0.577 S_e$],
-)
-
-== Static Strength vs. Fatigue Life
-
-A critical distinction must be made:
-
-#table(columns: 4,
-  [Criterion], [Meaning], [Condition],
-  [:----------], [:--------], [:----------],
-  [Static strength], [Max load without failure], [$\sigma_{max} < \sigma_y / S$],
-  [Fatigue life], [Cyclic damage accumulation], [$D = \sum n_i/N_{fi} < 1$],
-  [Fracture safety], [Crack stability], [$K_{max} < K_{IC}$],
-)
-
-The AI data center flywheel operates at stress levels well below static limits ($< 0.6\sigma_y$); _fatigue is the governing failure mode_.
-
-== PSD-Based Random Fatigue
-
-=== Stress PSD Derivation
-
-From the electromagnetic torque PSD $S_{Te}(f)$:
-
-$  S_{\sigma}(f, x) = |H_{TV}(f, x)|^2 \cdot S_{Te}(f)  $
-
-where $H_{TV}$ is the torsional vibration transfer function:
-
-$  H_{TV}(f, x) = \sum_{r=1}^{N} \frac{\Phi^{(r)}(x) \cdot \Phi^{(r)}(x_e)}{1 - (f/f_n^{(r)})^2 + i \cdot 2\zeta_r (f/f_n^{(r)})} \cdot \frac{r_x}{J(x)}  $
-
-=== Spectral Moments
-
-Define the $k$-th spectral moment:
-
-$  m_k = \int_0^\infty f^k \cdot S_{\sigma}(f) \, df  $
-
-Key moments:
-- $m_0 = \sigma_{rms}^2$ (total variance)
-- $E[0] = \sqrt{m_2/m_0}$ (zero-crossing rate)
-- $E[P] = \sqrt{m_4/m_2}$ (peak rate)
-
-=== Irregularity Factor
-
-$  \gamma = \frac{m_2}{\sqrt{m_0 \cdot m_4}}, \quad 0 \le \gamma \le 1  $
-
-For AI data center conditions: $\gamma \approx 0.3\text{--}0.6$ (broadband random).
-
-=== Dirlik Rainflow Method
-
-The broadband stress amplitude distribution is directly approximated by the Dirlik formula @dirlik-1985:
-
-$  p_{RF}(S) = \frac{1}{\sqrt{m_0}} \cdot \frac{D_1}{Q} e^{-Z/Q} + \frac{D_2 Z}{R^2} e^{-Z^2/(2R^2)} + D_3 Z e^{-Z^2/2}  $
-
-where $Z = S / \sqrt{m_0}$, with coefficients $D_1$, $D_2$, $D_3$, $Q$, $R$ derived from the spectral moments.
-
-=== Miner Cumulative Damage
-
-Total damage over operating time $T$:
-
-$  D = E[P] \cdot T \int_{0}^{\infty} \frac{p_{RF}(S)}{N_f(S)} \, dS  $
-
-_Fatigue limit_: For $D < D_{cr}$ (typically 1.0, conservatively 0.5--0.8).
-
-== Mean Stress Correction
-
-The steady centrifugal stress provides a non-zero mean stress. Using the _Gerber correction_ (recommended for ductile steels):
-
-$  \frac{\sigma_a}{S_e} + \left(\frac{\sigma_m}{\sigma_b}\right)^2 = 1  $
-
-With $\sigma_m \approx 500$ MPa and $\sigma_b = 1,050$ MPa:
-
-#table(columns: 4,
-  [Correction], [Equivalent $\sigma_a$], [Factor],
-  [:-----------], [:---------------------], [:-------],
-  [None], [34.7 MPa], [1.0$\times$],
-  [Goodman], [51.4 MPa], [1.48$\times$],
-  [_Gerber_], [_41.6 MPa_], [_1.20$\times$_],
-)
-
-Safety margin vs. $S_e$ (550 MPa) with Gerber correction: _13.2$\times$_.
-
-_Conclusion_: The rotor has _infinite fatigue initiation life_ under AI data center conditions.
-
-# Crack Propagation Analysis
-
-== Fracture Mechanics Foundation
-
-Assume manufacturing NDT (UT/MPI) detects defects less than inspection limits:
-
-- Internal forging defects: $a_0 \approx 0.5\text{--}1.0$ mm (UT limit)
-- Surface defects: $a_0 \approx 0.1\text{--}0.3$ mm (MPI limit)
-
-== Paris Law
-
-Crack growth under cyclic loading follows the Paris-Erdogan relation:
-
-$  \frac{da}{dN} = C(\Delta K)^m  $
-
-The stress intensity factor range:
-
-$  \Delta K = Y(a) \cdot \Delta\sigma \cdot \sqrt{\pi a}  $
-
-For 25Cr2Ni4MoV (quenched + tempered, $K_{IC} \approx 130$ MPa$\cdot$m$^{1/2}$) @cui-2015:
-
-$  \frac{da}{dN} = 2.1 \times 10^{-12} \cdot (\Delta K)^{3.2} \quad (\text{m/cycle, MPa·m}^{1/2})  $
-
-== Mode II/III Dominance
-
-Under torsional excitation, the cyclic crack driving force is:
-
-$  \Delta K_{II/III} = Y_{II/III} \cdot \Delta\tau_{xy} \cdot \sqrt{\pi a}  $
-
-where $\Delta\tau_{xy}$ is determined from the torque PSD rms amplitude.
-
-== Crack Growth Life
-
-Integrating the Paris law:
-
-$  N_p = \int_{a_0}^{a_c} \frac{da}{C(\Delta K(a))^m}  $
-
-For $m \neq 2$:
-
-$  N_p = \frac{2}{(m-2)C(\Delta\sigma)^m Y^m \pi^{m/2}} \left( a_0^{1-m/2} - a_c^{1-m/2} \right)  $
-
-Critical crack size for unstable propagation:
-
-$  a_c = \frac{1}{\pi} \left( \frac{K_{IC}}{Y \cdot \sigma_{max}} \right)^2 \approx 30.4 \text{ mm}  $
-
-== $\Delta K$ Threshold Analysis
-
-#table(columns: 4,
-  [Case], [Shaft Diameter], [$\Delta\tau_{xy}$], [$a_0$], [$\Delta K$], [Threshold], [Status],
-  [:-----], [:--------------], [:-----------------], [:------], [:-----------], [:----------], [:-------],
-  [500 kW], [50 mm], [6.6 MPa], [1.0 mm], [1.38], [5--8], [$\ll$ threshold],
-  [3200 kW], [50 mm], [2.1 MPa], [1.0 mm], [0.44], [5--8], [$\ll$ threshold],
-  [3200 kW], [100 mm], [0.13 MPa], [1.0 mm], [0.03], [5--8], [$\ll$ threshold],
-  [3200 kW], [100 mm], [0.13 MPa], [0.5 mm], [0.02], [5--8], [$\ll$ threshold],
-)
-
-_All cases have $\Delta K \ll \Delta K_{th}$_, indicating _infinite crack growth life_.
-
-== Random Load Spectral Integration
-
-For broadband random loading, the spectral form is:
-
-$  \overline{\frac{da}{dt}} = E[P] \cdot C \cdot \int_0^\infty (\Delta K)^m \cdot p_{RF}(S) \, dS  $
-
-Substituting $\Delta\sigma_{rms}$ would underestimate crack growth rate by 3--10$\times$ under AI data center conditions.
-
-# AI Data Center vs. Traditional UPS Comparison
-
-== Load Characteristic Comparison
-
-#table(columns: 4,
-  [Feature], [Traditional UPS], [AI Data Center], [Difference],
-  [:--------], [:---------------], [:---------------], [:-----------],
-  [Excitation source], [Grid fluctuation (0.01--0.5 Hz)], [GPU power noise (10 Hz--1 kHz)], [2--5 orders],
-  [Annual cycles], [$10^5\text{--}10^6$], [$10^8\text{--}10^9$], [$10^2\text{--}10^3\times$],
-  [Bandwidth], [Narrowband], [Broadband continuum], [Fundamental],
-  [Dynamic stress ratio], [$<$ 5\% centrifugal], [5\%--15\% centrifugal], [3--5$\times$],
-  [Resonance risk], [Single-point crossing], [Persistent broadband], [Fundamental],
-  [Non-Gaussianity], [Near-Gaussian], [Crest factor 4--6], [$\sim$2$\times$],
-)
-
-== Lifetime Assessment Comparison
-
-#table(columns: 4,
-  [Assessment], [Traditional UPS], [AI Data Center], [Conclusion],
-  [:-----------], [:---------------], [:---------------], [:-----------],
-  [Static margin], [$\sim$2.5$\times$], [$\sim$2.5$\times$], [Equivalent],
-  [HCF life], [$>10^9$ (infinite)], [$10^8\text{--}10^9$], [Reduces 1--2 orders],
-  [Crack growth], [$>10^{11}$ (negligible)], [$10^7\text{--}10^8$ cyc.], [Needs monitoring],
-  [Dominant failure], [Overload/bearing], [HCF + crack growth], [Fundamental shift],
-)
-
-== Power Scalability
-
-The analysis was extended to 3200 kW by mechanical self-scaling:
-
-> For a torque increase of 6.4$\times$, shaft diameter scales by $\sqrt[3]{T}$, or approximately 1.9$\times$. The resulting dynamic stress increases by only 1.1$\times$, remaining far below the fatigue limit.
-
-_Key insight_: The rotor fatigue life conclusion is _scale-invariant_ across 500 kW--3200 kW due to the cube-root diameter scaling of torsional stress.
-
-# Conclusion
-
-== Core Findings
-
-1. _Infinite fatigue initiation life_: The Gerber-corrected equivalent stress amplitude (41.6 MPa) is far below the fatigue limit (550 MPa), yielding a safety margin of 13.2$\times$.
-
-2. _Infinite crack growth life_: All examined cases show $\Delta K \ll \Delta K_{th}$ (1.38 MPa$\cdot$m$^{1/2}$ vs. threshold 5--8 MPa$\cdot$m$^{1/2}$), providing no crack propagation driving force under standard NDT conditions.
-
-3. _Scale invariance_: The infinite fatigue life conclusion holds for both 500 kW and 3200 kW systems due to mechanical self-scaling properties.
-
-4. _Actual life-limiting components_: Bearing system life (15--20 years) and power electronics service life (10--15 years) determine the practical system lifetime.
-
-== Recommended Design Criteria
-
-#table(columns: 4,
-  [Criterion], [Requirement], [Basis],
-  [:----------], [:------------], [:------],
-  [1st torsional frequency], [$f_{n1} > 100$ Hz], [Avoid GPU PSD high-energy band],
-  [Initial defect limit], [$a_0 \le 0.5$ mm], [Standard NDT],
-  [Safety factor], [$D < 0.5$], [Conservative Miner criterion],
-  [Crack growth SF], [$2\times$], [Load statistical uncertainty],
-)
-
-== Online Monitoring
-
-- _Shaft torsional vibration_: Fiber-optic sensor, 1 kHz sampling
-- _Radial displacement_: Laser probes for early crack detection
-- _Bus power monitoring_: 2 MHz sampling for torque PSD estimation
-- _Acoustic emission_: 150 kHz center frequency for crack growth events
-
-== Design Optimization
-
-1. Material: 25Cr2Ni4MoV with surface nitriding ($S_e$ to 580--620 MPa)
-2. Resonance: Increase shaft diameter to push $f_{n1} > 150$ Hz
-3. Active damping: Virtual torsional damper via SiC DC/DC control
-4. Input filtering: SST DC-link LC filter with $f_c \approx 100$ Hz
-
-# Appendix A: 3200 kW System Verification
-
-== Scaling Analysis
-
-The 3200 kW system verification uses the same 25Cr2Ni4MoV rotor material but with adjusted geometry for the higher power rating.
-
-=== Torque Scaling
-
-$  \frac{T_{3200}}{T_{500}} = \frac{3200}{500} = 6.4  $
-
-=== Shaft Diameter Scaling (Stress-Limited)
-
-For constant torsional stress:
-
-$  \frac{D_{3200}}{D_{500}} = \sqrt[3]{\frac{T_{3200}}{T_{500}}} = \sqrt[3]{6.4} \approx 1.86  $
-
-=== Resulting Dynamic Stress
-
-For 50 mm shaft (unchanged diameter, magnetic bearings):
-$  \Delta\tau_{xy,3200,50mm} = 6.6 \times \frac{500}{3200} \times \frac{18,000}{25,000} \approx 2.1 \text{ MPa}  $
-
-For 100 mm shaft (scaled):
-$  \Delta\tau_{xy,3200,100mm} = 2.1 \times \left(\frac{50}{100}\right)^3 \approx 0.13 \text{ MPa}  $
-
-=== $\Delta K$ Verification
-
-#table(columns: 4,
-  [Shaft (mm)], [$\Delta\tau_{xy}$ (MPa)], [$a_0$ (mm)], [$\Delta K$ (MPa·m$^{1/2}$)], [Threshold], [Status],
-  [:-----------], [:----------------------], [:-----------], [:--------------------------], [:----------], [:-------],
-  [50], [2.1], [1.0], [0.44], [5--8], [Safe],
-  [100], [0.13], [1.0], [0.03], [5--8], [Safe],
-  [100], [0.13], [0.5], [0.02], [5--8], [Safe],
-)
-
-=== Centrifugal Stress at Higher Speed
-
-For 3200 kW, higher speed (25,000 rpm) may be used:
-
-$  \sigma_{cent,max,3200} = 532 \times \left(\frac{25,000}{18,000}\right)^2 \approx 1026 \text{ MPa}  $
-
-This approaches yield strength (1,050 MPa). _Design recommendation_: If $n_{max} > 22,000$ rpm, use larger shaft diameter or material upgrade.
-
-== Appendix B: Key Notation
-
-#table(columns: 4,
-  [Symbol], [Description], [Unit],
-  [:-------], [:------------], [:-----],
-  [$D$], [Rotor diameter], [mm],
-  [$E$], [Young's modulus], [GPa],
-  [$K_{IC}$], [Fracture toughness], [MPa·m$^{1/2}$],
-  [$\Delta K$], [SIF range], [MPa·m$^{1/2}$],
-  [$\Delta K_{th}$], [Threshold SIF range], [MPa·m$^{1/2}$],
-  [$S_e$], [Fatigue limit], [MPa],
-  [$\sigma_a$], [Alternating stress], [MPa],
-  [$\sigma_m$], [Mean stress], [MPa],
-  [$\sigma_y$], [Yield strength], [MPa],
-  [$\sigma_b$], [Ultimate strength], [MPa],
-  [$\tau_{xy}$], [Shear stress], [MPa],
-  [$f_{sw}$], [SiC switching frequency], [kHz],
-  [$\omega$], [Angular velocity], [rad/s],
-  [$\Gamma(f)$], [Coherence function], [—],
-)
-= Introduction
-
-== Background
-
-The rapid scaling of AI computing infrastructure has introduced
-unprecedented challenges in power delivery and backup energy storage.
-Modern GPU mega-clusters, comprising 10,000+ accelerators, exhibit
-highly dynamic power consumption profiles characterized by broadband
-fluctuations spanning 10 Hz to 10 kHz @google-borg-2021". These
-fluctuations arise from computation synchronization events (All-Reduce,
-gradient checkpointing), inference request burstiness, and thermal
-management cycles, creating a fundamentally different load regime
-compared to traditional data center UPS applications.
-
-== Problem Statement
-
-Flywheel energy storage systems (FESS) coupled to 800V DC buses through
-SiC DC/DC converters and solid-state transformers (SST) have emerged as
-a promising solution for AI data center power quality management and
-short-duration backup. However, the existing fatigue life assessment
-framework for flywheel rotors is predicated on narrowband grid-frequency
-excitation (0.01–0.5 Hz), which is fundamentally inadequate for AI data
-center conditions.
-
-The critical engineering questions are:
-
-+ #strong[Fatigue initiation]: Under broadband random torque excitation,
-  does the rotor’s fatigue life remain infinite as in traditional UPS
-  scenarios?
-+ #strong[Crack propagation]: What is the crack growth life from
-  manufacturing defects under AI data center load spectra?
-+ #strong[Power scalability]: Does the fatigue life conclusion hold
-  across the 500 kW–3200 kW power range?
-
-== Research Scope
-
-This report establishes a full-chain coupling fatigue analysis framework
-covering:
-
-- #strong[Section 2]: System modeling – GPU power spectral density, SiC
-  electromagnetic coupling
-- #strong[Section 3]: Torsional vibration and Campbell analysis
-- #strong[Section 4]: Steady-state and dynamic stress decomposition
-- #strong[Section 5]: PSD-based broadband random fatigue assessment
-- #strong[Section 6]: Paris-law crack propagation analysis
-- #strong[Section 7]: Quantitative comparison with traditional UPS
-  methodology
-- #strong[Section 8]: Engineering conclusions and design recommendations
-
-== Methodology Overview
-
-The analysis methodology integrates multiple engineering domains:
-
-- #strong[Power electronics]: SiC DC/DC converter ripple modeling with
-  space vector PWM harmonics
-- #strong[Structural dynamics]: Continuum torsional vibration with
-  Rayleigh-Ritz modal truncation
-- #strong[Fatigue mechanics]: PSD-based Dirlik broadband rainflow with
-  Basquin S-N curve
-- #strong[Fracture mechanics]: Paris-Erdogan law with random load
-  spectral integration
-
-All calculations are based on the 25Cr2Ni4MoV forged steel rotor
-(\$\$430 mm, 20,000 rpm) from Honghui Energy’s commercial FESS product,
-with material properties validated against ASTM A471 and GB/T 3310-2019
-standards.
-
-= System Modeling
-
-== Flywheel Rotor Physical Parameters
-
-Table 1 summarizes the core physical parameters of the Honghui Energy
-25Cr2Ni4MoV forged steel rotor.
-
-== AI GPU Cluster Power Spectrum Model
-
-=== GPU Load Temporal Hierarchy
-
-The defining characteristic of AI data center loads is their multiscale
-temporal structure. Define the instantaneous GPU cluster bus power as:
-
-$ P_(G P U) lr((t)) eq P_(b a s e) plus sum_(i eq 1)^N Delta P_i dot.op upright("Rect")_(lr([t_i comma t_i plus tau_i])) lr((t)) plus P_(n o i s e) lr((t)) $
-
-where $P_(b a s e)$ is the baseline power, $Delta P_i$ is the amplitude
-of the $i$-th power pulse, and $P_(n o i s e) lr((t))$ represents
-residual stochastic components.
+|= AI 万卡 GPU 集群直流母线飞轮转子结构完整性论证报告（V1.1）
+
+#strong[日期]：2026-05-21 \
+#strong[版本]：V1.1 \
+#strong[基准转子]：直径 430 mm，材料 25Cr2Ni4MoV，最高转速 20,000
+rpm，800V DC Bus，SiC DC/DC + SST \
+#strong[数据来源]：北京泓慧国际能源技术发展股份有限公司飞轮转子产品参数
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 摘要
+
+本报告针对 AI 万卡 GPU 集群通过 SiC 电力电子系统（DC/DC + SST）耦合至
+800V
+直流母线的飞轮储能系统，建立完整的转子寿命与动态可靠性分析框架。核心研究对象为泓慧能源
+25Cr2Ni4MoV 锻钢转子（直径 430 mm，最高转速 20,000
+rpm）。关键区别在于：传统 UPS 场景中飞轮承受的是电网频率波动（0.01~0.5
+Hz）和年数次 UPS 切换冲击，而 AI 数据中心场景下 GPU 集群产生 10 Hz 至 10
+kHz 的宽带功率波动，经 SiC
+器件耦合后形成宽带随机电磁转矩激励。本报告从材料力学、转子动力学和断裂力学三个层面系统性评估该转子在
+AI
+数据中心工况下的极限性能。疲劳萌生寿命为无限寿命，裂纹扩展受限于应力强度因子门槛值
+DeltaK\_th（5–8 MPa·m^0.5），在标准无损检测条件下实算 DeltaK \= 1.38
+MPa·m^0.5，远低于门槛值。报告同时论证该结论在 500 kW 至 3200 kW
+功率范围内具有普遍性。
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 1. 系统建模基础
+
+=== 1.1 飞轮转子物理参数
+
+下表列出泓慧能源 430 mm 直径 25Cr2Ni4MoV
+转子的核心参数，所有数值均来自实际产品报告、国家标准或公开文献。
 
 #align(center)[#table(
-  columns: 4,
-  align: (col, row) => (left,left,left,left,).at(col),
+  columns: 5,
+  align: (col, row) => (auto,auto,auto,auto,auto,).at(col),
   inset: 6pt,
-  [Event], [Timescale], [Power Change], [Mechanism],
-  [All-Reduce sync],
-  [100 $mu$s–10 ms],
-  [+30%–+80%],
-  [Gradient aggregation],
-  [Checkpoint I/O],
-  [10–100 ms],
-  [+20%–+50%],
-  [PCIe/NVLink burst],
-  [Forward/Backward],
-  [1–100 ms],
-  [±10%–±30%],
-  [Pipeline alternation],
-  [Batch transition],
-  [10–200 ms],
-  [-40%—80%],
-  [Pipeline drain],
-  [Inference spike],
-  [1 $mu$s–1 ms],
-  [+5%–+30%],
-  [Request scaling],
+  [参数], [符号], [值], [单位], [来源],
+  [材料],
+  [25Cr2Ni4MoV],
+  [—],
+  [—],
+  [泓慧报告],
+  [转子直径],
+  [D],
+  [430],
+  [mm],
+  [泓慧报告],
+  [密度],
+  [rho],
+  [7,850],
+  [kg/m^3],
+  [GB/T 3310-2019],
+  [弹性模量],
+  [E],
+  [206],
+  [GPa],
+  [GB/T 3310-2019],
+  [泊松比],
+  [nu],
+  [0.30],
+  [—],
+  [ASTM A471],
+  [屈服强度],
+  [sigma\_y],
+  [930],
+  [MPa],
+  [泓慧报告],
+  [抗拉强度],
+  [sigma\_b],
+  [1,050],
+  [MPa],
+  [泓慧报告],
+  [疲劳极限（10^7 次循环）],
+  [S\_e],
+  [550],
+  [MPa],
+  [泓慧报告],
+  [断裂韧性],
+  [K\_IC],
+  [120~145],
+  [MPa·m^(1/2)],
+  [CTOD 试验],
+  [Paris 常数 C],
+  [C],
+  [2.1 × 10^(-12)],
+  [—],
+  [Cui et al., EFM 2015],
+  [Paris 指数 m],
+  [m],
+  [3.2],
+  [—],
+  [Cui et al., EFM 2015],
+  [最高转速],
+  [n\_max],
+  [20,000],
+  [rpm],
+  [泓慧报告],
+  [额定转速],
+  [n\_rated],
+  [18,000],
+  [rpm],
+  [泓慧报告],
+  [峰值离心应力（最高转速）],
+  [sigma\_cent\_max],
+  [657],
+  [MPa],
+  [泓慧报告 FE],
+  [转子类型],
+  [实心阶梯轴 + 飞轮盘],
+  [—],
+  [—],
+  [—],
 )
 ]
 
-For mega-clusters, these fluctuations superimpose rather than cancel.
-Field measurements show that normalized spectral density of total
-cluster power exceeds $minus 20$ dB across 10 Hz–1 kHz
-@google-borg-2021, meta-isca-2023.
+=== 1.2 功率范围扩展性说明
 
-=== GPU Power PSD Model
+本报告以 500 kW 飞轮为例进行完整的数值计算。在工程实践中，AI
+数据中心飞轮系统的功率可在 500 kW 至 3200 kW
+范围内变化。随着功率增大，基础转矩按比例增加，但轴颈直径也按转矩的立方根比例放大。这一缩放特性使得不同功率等级下的扭转剪切应力幅保持在同一量级，因此本文的疲劳和断裂力学结论具有跨功率等级的普遍性。3200
+kW 工况的独立验算结果见附录 A。
 
-Define the normalized power spectral density of a single GPU:
+=== 1.3 AI 万卡 GPU 集群功率频谱模型
 
-$ S_(G P U) lr((f)) eq frac(P_(p k)^2, 2 pi f_c) dot.op frac(1, 1 plus lr((f slash f_c))^2) plus sum_(k eq 1)^N A_k dot.op delta lr((f minus f_k)) plus W lr((f)) $
+==== 1.3.1 GPU 负载的时间尺度分层
 
-where: - #strong[Term 1]: Lorentzian continuum, cutoff $f_c approx 50$
-Hz - #strong[Term 2]: Discrete line spectrum at computed rhythms $f_k$ -
-#strong[Term 3]: White noise floor $W lr((f)) eq sigma_(n o i s e)^2$
+定义 GPU 集群母线瞬时功耗为：
 
-For the mega-cluster, the equivalent PSD becomes:
+P\_GPU(t) \= P\_base + sum DeltaP\_i · Rect\_i(t) + P\_noise(t)
 
-$ S_(c l u s t e r) lr((f)) eq N_(G P U) dot.op S_(G P U) lr((f)) dot.op Gamma lr((f)) $
-
-where $Gamma lr((f))$ is the coherence function,
-$Gamma approx 0.3 upright("–") 0.6$ at low frequencies ($lt$ 50 Hz) and
-$Gamma arrow.r N_(G P U)^(minus 1)$ at high frequencies.
-
-= Electromagnetic Torque and Torsional Vibration
-
-== SiC DC/DC Coupling Path
-
-The flywheel system interfaces with the 800V DC bus via a SiC MOSFET
-DC/DC converter. The SiC switching frequency
-$f_(s w) eq 20 upright("–") 50$ kHz introduces high-frequency torque
-ripple that must be modeled.
-
-The total electromagnetic torque is expressed as:
-
-$ T_e lr((t)) eq T_(e 0) plus Delta T_(e comma l o a d) lr((t)) plus Delta T_(e comma r i p p l e) lr((t)) $
-
-=== Load-Coupled Torque
-
-GPU power fluctuations transmitted through the DC/DC converter to the
-flywheel motor produce:
-
-$ Delta T_(e comma l o a d) lr((t)) eq 1 / omega_(F W) dot.op frac(P_(D C comma b u s) lr((t)), eta_(D C slash D C)) approx frac(P_(G P U) lr((t)), omega_(F W) dot.op eta_(D C slash D C)) $
-
-where $omega_(F W)$ is the flywheel angular velocity and
-$eta_(D C slash D C) approx 97.5 percent$ is the SiC converter
-efficiency.
-
-=== PWM Ripple Torque
-
-The PWM modulation introduces current harmonics that generate ripple
-torque:
-
-$ Delta T_(e comma r i p p l e) lr((t)) eq 3 / 2 p lr([Psi_(P M) dot.op tilde(i)_q lr((t)) plus lr((L_d minus L_q)) dot.op tilde(i)_d lr((t)) dot.op tilde(i)_q lr((t))]) $
-
-For a 500 kW PMSM flywheel motor,
-$lr(|Delta T_(e comma r i p p l e)|)_(r m s) approx 0.5 upright("–") 2.5$
-N$dot.op$m.
-
-=== Synthesized Torque Spectrum
-
-The combined torque perturbation PSD is:
-
-$ S_(T e) lr((f)) eq frac(1, omega_(F W)^2 eta^2) dot.op S_(G P U) lr((f)) dot.op lr(|H_(D C slash D C) lr((f))|)^2 plus sum_(m comma n) delta lr((f minus lr((m f_(s w) plus.minus n f_e)))) dot.op Gamma_(r i p p l e)^2 $
-
-== Torsional Vibration Model
-
-=== Continuum Torsion Equation
-
-The rotor is modeled as a continuous torsional system:
-
-$ G J lr((x)) frac(diff^2 theta lr((x comma t)), diff x^2) minus rho J_p lr((x)) frac(diff^2 theta lr((x comma t)), diff t^2) minus c lr((x)) frac(diff theta lr((x comma t)), diff t) eq minus T_e lr((t)) dot.op delta lr((x minus x_e)) $
-
-where $theta lr((x comma t))$ is the angular displacement, $G$ the shear
-modulus (79.5 GPa for 25Cr2Ni4MoV), and $x_e$ the torque application
-point.
-
-=== Modal Truncation
-
-Discretization via Rayleigh-Ritz yields the N-DOF system:
-
-$ bold(J) bold(theta)^(̈) lr((t)) plus bold(C) dot(bold(theta)) lr((t)) plus bold(K) bold(theta) lr((t)) eq bold(T)_e lr((t)) $
-
-=== Natural Frequencies
+==== 1.3.2 关键时间尺度
 
 #align(center)[#table(
   columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,).at(col),
   inset: 6pt,
-  [Mode], [$f_n$ (Hz)], [Description],
-  [1st],
-  [18–35],
-  [1st torsion],
-  [2nd],
-  [120–200],
-  [2nd torsion (bending coupling)],
-  [3rd],
-  [350–500],
-  [Higher torsion],
-  [4th+],
-  [$gt$ 800],
-  [Local modes],
+  [事件], [时间尺度], [功率变化幅度],
+  [All-Reduce 同步],
+  [100 μs~10 ms],
+  [+30%~+80% P\_base],
+  [梯度检查点 I/O],
+  [10~100 ms],
+  [+20%~+50%],
+  [前向/反向传播],
+  [1~100 ms],
+  [±10%~±30%],
+  [批次切换],
+  [10~200 ms],
+  [-40%~-80%],
+  [推理请求],
+  [1 μs~1 ms],
+  [+5%~+30%],
+  [温控降频],
+  [秒级],
+  [-30%~-50%],
 )
 ]
 
-== Campbell Diagram Analysis
+万卡集群在 10 Hz ~ 1 kHz 频段的归一化频谱密度 \> -20 dB（Google Borg,
+ASPLOS 2021）。
 
-Traditional UPS flywheel excitation is limited to 1$times$/2$times$
-rotational frequency. AI data center flywheels introduce broadband
-non-synchronous excitation:
+==== 1.3.3 GPU 功率的 PSD 模型
 
-- GPU PSD continuum (10 Hz–1 kHz)
-- PWM sidebands at $f_(s w) plus.minus n f_e$
+S\_GPU(f) \= P\_pk^2 / (2π f\_c) · 1/(1 + (f/f\_c)^2) + sum A\_k · δ(f -
+f\_k) + W(f)
 
-#strong[Design requirement]: The first torsional frequency must exceed
-$f_(n 1) gt 100$ Hz to avoid the GPU PSD high-energy band.
-Alternatively, virtual torsional damping via SiC DC/DC control can be
-employed.
+万卡集群等效 PSD：
 
-= Stress Analysis and Load Decomposition
+S\_cluster(f) \= N\_GPU · S\_GPU(f) · Γ(f)
 
-== Steady-State Centrifugal Stress
+其中 Γ(f) 为相干函数，低频段 Γ ≈ 0.3~0.6，高频段 Γ → 1/N\_GPU。
 
-At rated speed (18,000 rpm, $omega eq 1885$ rad/s), centrifugal stress
-dominates. For a uniform solid disk:
+[
+#strong[关键结论]：万卡集群在 10 Hz 至 1 kHz
+频段存在持续的高能量功率波动，其 PSD 密度比电网波动高 2~3
+个数量级，是飞轮转子疲劳评估的核心输入。
+]
 
-$ sigma_r lr((r)) eq frac(3 plus nu, 8) rho omega^2 lr((R^2 minus r^2)) $
+\
+#line(length: 100%, stroke: 0.4pt)
 
-$ sigma_theta lr((r)) eq frac(3 plus nu, 8) rho omega^2 lr((R^2 minus frac(1 plus 3 nu, 3 plus nu) r^2)) $
+== 2. 电磁转矩纹波模型
 
-Maximum stress at the rotor center:
+飞轮系统通过 SiC MOSFET DC/DC 变换器与 800V 直流母线连接。
 
-$ sigma_(m a x) eq sigma_r lr((0)) eq sigma_theta lr((0)) eq frac(3 plus nu, 8) rho omega^2 R^2 $
+电磁转矩：T\_e(t) \= T\_e0 + ΔT\_e,load(t) + ΔT\_e,ripple(t)
 
-Substituting $R eq 0.215$ m for the \$\$430 mm rotor:
+负载耦合转矩：ΔT\_e,load(t) \= P\_GPU(t) / (ω\_FW · η\_DC/DC)
 
-$ sigma_(m a x comma c e n t r i f u g a l) approx frac(3 plus 0.3, 8) times 7850 times lr((1885))^2 times 0.215^2 approx 532 upright(" MPa") $
+其中 ω\_FW 为飞轮瞬时角速度，η\_DC/DC ≈ 97.5%。
 
-== Steady Stress Distribution
+PWM 纹波转矩：|ΔT\_e,ripple|\_rms ≈ 0.5~2.5 N·m（500 kW PMSM 飞轮电机）
+
+合成转矩 PSD：S\_Te(f) \= (1/ω\_FW^2 η^2) · S\_GPU(f) · |H\_DC/DC(f)|^2
++ 纹波线谱项
+
+[
+#strong[关键结论]：转子承受的电磁转矩激励覆盖 10 Hz ~ 50 kHz
+宽带范围。10 Hz~1 kHz 连续谱来自 GPU
+负载，是疲劳分析的主要输入。动态应力幅值较低——500 kW
+系统满负荷时基础转矩约 265 Nm，30% 功率波动折算至轴颈的剪切应力幅仅约
+4~16 MPa。
+]
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 3. 转子扭振模型与 Campbell 分析
+
+=== 3.1 连续体扭转振动方程
+
+GJ(x)·∂²θ/∂x² - ρJ\_p(x)·∂²θ/∂t² - c(x)·∂θ/∂t \= -T\_e(t)·δ(x - x\_e)
+
+=== 3.2 固有频率（430 mm 直径实心转子）
 
 #align(center)[#table(
   columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,).at(col),
   inset: 6pt,
-  [Location], [Stress (MPa)], [Source],
-  [Shaft center],
-  [500–657],
-  [FE (Honghui)],
-  [Disk root ($R$ \= 0.35 m)],
-  [340–400],
+  [模态], [f\_n (Hz)], [描述],
+  [1 阶],
+  [18~35],
+  [一阶扭转],
+  [2 阶],
+  [120~200],
+  [二阶扭转],
+  [3 阶],
+  [350~500],
+  [高阶/弯扭耦合],
+  [4+阶],
+  [\>800],
+  [局部模态],
+)
+]
+
+=== 3.3 AI 数据中心特殊关注
+
+传统 UPS 飞轮激励仅为 1×/2× 转频。AI
+数据中心飞轮有宽带非转频依赖的激励（GPU PSD + PWM 边带），可在 10 Hz~1
+kHz 范围内形成持续共振带。
+
+#strong[应对措施]：设计一阶扭频 f\_n1 \> 100 Hz，或植入虚拟扭振阻尼器。
+
+[
+#strong[关键结论]：共振从离散点变为宽带带。但共振放大倍数受阻尼限制（ζ ≈
+0.001~0.01，放大 50~500 倍），由于输入应力幅本身极低（4~16
+MPa），放大后仍远低于疲劳极限 550 MPa。
+]
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 4. 应力分析
+
+=== 4.1 稳态离心应力
+
+实心圆盘解析解（泓慧转子，R \= 0.215 m）：
+
+σ\_max,rated \= (3+ν)/8 · ρ · ω² · R² \= 532 MPa（18,000 rpm）
+
+σ\_max,max \= 532 × (20000/18000)² \= #strong[657 MPa]（20,000
+rpm，与泓慧 FE 吻合）
+
+#align(center)[#table(
+  columns: 3,
+  align: (col, row) => (auto,auto,auto,).at(col),
+  inset: 6pt,
+  [位置], [应力 (MPa)], [来源],
+  [转轴中心],
+  [532~657],
+  [解析解/FE],
+  [飞轮盘根部 (R\=0.18 m)],
+  [430~520],
   [FE],
-  [Shaft shoulder transition],
-  [260–320],
+  [轴肩过渡区],
+  [380~480],
   [FE],
-  [Bearing fit surface],
-  [120–200],
+  [轴承座配合面],
+  [180~300],
   [FE],
 )
 ]
 
-== Dynamic Stress Component
+=== 4.2 动态应力
 
-Dynamic stress arises from electromagnetic torque fluctuations causing
-torsional shear stress:
+τ\_xy(t,x) \= T(t)·r / J(x)
 
-$ tau_(x y) lr((t comma x)) eq frac(T lr((t)) dot.op r, J lr((x))) $
+σ\_vM,alt(x) \= √3 · τ\_xy,alt(x)
 
-The von Mises equivalent alternating stress amplitude:
+==== 修正系数
 
-$ sigma_(v M comma a l t) lr((x)) eq sqrt(3) dot.op tau_(x y comma a l t) lr((x)) $
+- K\_f \= 1 + q(K\_t - 1), q ≈ 0.85~0.95
+- ε ≈ 0.6~0.75（大截面）
+- β ≈ 0.85~0.95（磨削）
+- σ\_a,eff \= K\_f/(εβ) · σ\_a,nominal
 
-=== Correction Factors
-
-Critical stress concentration locations require correction:
-
-- #strong[Fatigue notch factor]: $K_f eq 1 plus q lr((K_t minus 1))$,
-  where $q approx 0.85 upright("–") 0.95$
-- #strong[Size factor]: $epsilon approx 0.6 upright("–") 0.75$ for
-  sections $gt$ 200 mm
-- #strong[Surface factor]: $beta approx 0.85 upright("–") 0.95$ for
-  ground surfaces
-
-Effective dynamic stress amplitude:
-
-$ sigma_(a comma e f f) eq frac(K_f, epsilon beta) dot.op sigma_(a comma n o m i n a l) $
-
-=== Numerical Example (500 kW Rotor)
-
-Assuming the torque fluctuation $T_(a l t) approx 2 percent$ of rated
-torque ($Delta T approx 16$ N$dot.op$m):
+==== 数值示例（500 kW）
 
 #align(center)[#table(
   columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,).at(col),
   inset: 6pt,
-  [Parameter], [Value], [Unit],
-  [Torque fluctuation $Delta T$],
+  [参数], [值], [单位],
+  [转矩波动 ΔT],
   [16],
-  [N$dot.op$m],
-  [Shear stress amplitude $tau_(a l t)$],
+  [N·m],
+  [剪切应力幅 τ\_alt],
   [6.6],
   [MPa],
-  [von Mises stress $sigma_(v M)$],
+  [von Mises σ\_vM],
   [11.5],
   [MPa],
-  [$K_f slash lr((epsilon beta))$],
+  [K\_f/(εβ)],
   [3.0],
   [—],
-  [#strong[Effective stress $sigma_(a comma e f f)$]],
+  [#strong[有效应力 σ\_a,eff]],
   [#strong[34.7]],
   [#strong[MPa]],
-  [Safety margin vs. $S_e$ (550 MPa)],
-  [#strong[15.8$times$]],
+  [疲劳极限 S\_e],
+  [550],
+  [MPa],
+  [安全裕度],
+  [#strong[15.8×]],
   [—],
 )
 ]
 
-= Fatigue Life Assessment
+\
+#line(length: 100%, stroke: 0.4pt)
 
-== Material S-N Curve
+== 5. 疲劳寿命评估
 
-The 25Cr2Ni4MoV S-N curve follows the Basquin equation:
+=== 5.1 S-N 曲线（25Cr2Ni4MoV）
 
-$ sigma_a lr((N_f)) eq sigma_f prime dot.op lr((2 N_f))^b $
-
-#strong[Key fatigue parameters] (quenched + tempered):
+Basquin 公式：σ\_a(N\_f) \= σ\_f’·(2N\_f)^b
 
 #align(center)[#table(
-  columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  columns: 2,
+  align: (col, row) => (auto,auto,).at(col),
   inset: 6pt,
-  [Parameter], [Value], [Source],
-  [$sigma_f prime$],
+  [参数], [值],
+  [σ\_f’],
   [3,890 MPa],
-  [~$3.7 sigma_b$],
-  [$b$],
-  [$minus 0.085$],
-  [High-strength alloy],
-  [Fatigue limit $S_e$ ($N eq 10^7$)],
+  [b],
+  [-0.085],
+  [S\_e (10^7)],
   [550 MPa],
-  [Rotating bending test],
-  [Torsional fatigue limit $tau_e$],
+  [τ\_e],
   [318 MPa],
-  [$tau_e approx 0.577 S_e$],
 )
 ]
 
-== Static Strength vs. Fatigue Life
+=== 5.2 PSD 随机疲劳法
 
-A critical distinction must be made:
+从转矩 PSD 到应力 PSD：S\_σ(f,x) \= |H\_TV(f,x)|² · S\_Te(f)
+
+谱矩：m\_k \= ∫ f^k · S\_σ(f) df
+
+辐照度因子 γ \= m₂/√(m₀·m₄)，AI 工况 γ ≈ 0.3~0.6（宽带随机载荷）。
+
+=== 5.3 Dirlik Rainflow 法
+
+p\_RF(S) \= (1/√m₀)\[ D₁/Q · e^(-Z/Q) + D₂Z/R² · e^(-Z²/2R²) + D₃Z ·
+e^(-Z²/2) \]
+
+=== 5.4 Miner 累积损伤
+
+D \= E\[P\]·T ∫ p\_RF(S)/N\_f(S) dS \< D\_cr
+
+=== 5.5 Gerber 平均应力修正
+
+σ\_m ≈ 500 MPa（离心应力贡献）：
+
+σ\_a,eq^Gerber \= 34.7 × 1.20 \= #strong[41.6 MPa]
+
+安全裕度 vs S\_e (550 MPa)：#strong[13.2×]
+
+[
+#strong[关键结论]：有效应力幅 41.6 MPa 远低于疲劳极限 550
+MPa，疲劳萌生为无限寿命。
+]
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 6. Paris 裂纹扩展分析
+
+=== 6.1 初始缺陷
+
+- 锻件内部：a₀ ≈ 0.5~1.0 mm（UT 检测限）
+- 表面：a₀ ≈ 0.1~0.3 mm（MPI 检测限）
+
+=== 6.2 Paris 公式
+
+da/dN \= C·(ΔK)^m
+
+ΔK \= Y(a) · Δσ · √(π·a)
+
+25Cr2Ni4MoV：C \= 2.1×10⁻¹², m \= 3.2（Cui et al., EFM 2015）
+
+=== 6.3 门槛值分析（关键分析）
+
+Paris 公式的前提是 ΔK \> ΔK\_th。对于 25Cr2Ni4MoV：
 
 #align(center)[#table(
-  columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  columns: 2,
+  align: (col, row) => (auto,auto,).at(col),
   inset: 6pt,
-  [Criterion], [Meaning], [Condition],
-  [Static strength],
-  [Max load without failure],
-  [$sigma_(m a x) lt sigma_y slash S$],
-  [Fatigue life],
-  [Cyclic damage accumulation],
-  [$D eq sum n_i slash N_(f i) lt 1$],
-  [Fracture safety],
-  [Crack stability],
-  [$K_(m a x) lt K_(I C)$],
+  [模式], [ΔK\_th (MPa·m^0.5)],
+  [模式 I（张开）],
+  [7~10],
+  [模式 II/III（剪切）],
+  [5~8],
 )
 ]
 
-The AI data center flywheel operates at stress levels well below static
-limits ($lt 0.6 sigma_y$); #strong[fatigue is the governing failure
-mode].
+标准 NDT 条件（a₀ \= 0.5 mm）下的初始 ΔK：
 
-== PSD-Based Random Fatigue
-
-=== Stress PSD Derivation
-
-From the electromagnetic torque PSD $S_(T e) lr((f))$:
-
-$ S_sigma lr((f comma x)) eq lr(|H_(T V) lr((f comma x))|)^2 dot.op S_(T e) lr((f)) $
-
-where $H_(T V)$ is the torsional vibration transfer function:
-
-$ H_(T V) lr((f comma x)) eq sum_(r eq 1)^N frac(Phi^(lr((r))) lr((x)) dot.op Phi^(lr((r))) lr((x_e)), 1 minus lr((f slash f_n^(lr((r)))))^2 plus i dot.op 2 zeta_r lr((f slash f_n^(lr((r)))))) dot.op frac(r_x, J lr((x))) $
-
-=== Spectral Moments
-
-Define the $k$-th spectral moment:
-
-$ m_k eq integral_0^oo f^k dot.op S_sigma lr((f)) thin d f $
-
-Key moments: - $m_0 eq sigma_(r m s)^2$ (total variance) -
-$E lr([0]) eq sqrt(m_2 slash m_0)$ (zero-crossing rate) -
-$E lr([P]) eq sqrt(m_4 slash m_2)$ (peak rate)
-
-=== Irregularity Factor
-
-$ gamma eq m_2 / sqrt(m_0 dot.op m_4) comma quad 0 lt.eq gamma lt.eq 1 $
-
-For AI data center conditions: $gamma approx 0.3 upright("–") 0.6$
-(broadband random).
-
-=== Dirlik Rainflow Method
-
-The broadband stress amplitude distribution is directly approximated by
-the Dirlik formula @dirlik-1985":
-
-$ p_(R F) lr((S)) eq 1 / sqrt(m_0) dot.op D_1 / Q e^(minus Z slash Q) plus frac(D_2 Z, R^2) e^(minus Z^2 slash lr((2 R^2))) plus D_3 Z e^(minus Z^2 slash 2) $
-
-where $Z eq S slash sqrt(m_0)$, with coefficients $D_1$, $D_2$, $D_3$,
-$Q$, $R$ derived from the spectral moments.
-
-=== Miner Cumulative Damage
-
-Total damage over operating time $T$:
-
-$ D eq E lr([P]) dot.op T integral_0^oo frac(p_(R F) lr((S)), N_f lr((S))) thin d S $
-
-#strong[Fatigue limit]: For $D lt D_(c r)$ (typically 1.0,
-conservatively 0.5–0.8).
-
-== Mean Stress Correction
-
-The steady centrifugal stress provides a non-zero mean stress. Using the
-#strong[Gerber correction] (recommended for ductile steels):
-
-$ sigma_a / S_e plus lr((sigma_m / sigma_b))^2 eq 1 $
-
-With $sigma_m approx 500$ MPa and $sigma_b eq 1 comma 050$ MPa:
+ΔK\_initial \= Y · σ\_a,eff · √(π·a₀) \= 1.0 × 34.7 × 10⁶ × √(π ×
+0.5×10⁻³) \= #strong[1.38 MPa·m^0.5]
 
 #align(center)[#table(
-  columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  columns: 4,
+  align: (col, row) => (auto,auto,auto,auto,).at(col),
   inset: 6pt,
-  [Correction], [Equivalent $sigma_a$], [Factor],
-  [None],
-  [34.7 MPa],
-  [1.0$times$],
-  [Goodman],
-  [51.4 MPa],
-  [1.48$times$],
-  [#strong[Gerber]],
-  [#strong[41.6 MPa]],
-  [#strong[1.20$times$]],
-)
-]
-
-Safety margin vs. $S_e$ (550 MPa) with Gerber correction:
-#strong[13.2$times$].
-
-#strong[Conclusion]: The rotor has #strong[infinite fatigue initiation
-life] under AI data center conditions.
-
-= Crack Propagation Analysis
-
-== Fracture Mechanics Foundation
-
-Assume manufacturing NDT (UT/MPI) detects defects less than inspection
-limits:
-
-- Internal forging defects: $a_0 approx 0.5 upright("–") 1.0$ mm (UT
-  limit)
-- Surface defects: $a_0 approx 0.1 upright("–") 0.3$ mm (MPI limit)
-
-== Paris Law
-
-Crack growth under cyclic loading follows the Paris-Erdogan relation:
-
-$ frac(d a, d N) eq C lr((Delta K))^m $
-
-The stress intensity factor range:
-
-$ Delta K eq Y lr((a)) dot.op Delta sigma dot.op sqrt(pi a) $
-
-For 25Cr2Ni4MoV (quenched + tempered, $K_(I C) approx 130$
-MPa$dot.op$m$'^(1 slash 2)$) @cui-2015":
-
-$ frac(d a, d N) eq 2.1 times 10^(minus 12) dot.op lr((Delta K))^3.2 quad lr((upright("m/cycle, MPa·m")^(1 slash 2))) $
-
-== Mode II/III Dominance
-
-Under torsional excitation, the cyclic crack driving force is:
-
-$ Delta K_(I I slash I I I) eq Y_(I I slash I I I) dot.op Delta tau_(x y) dot.op sqrt(pi a) $
-
-where $Delta tau_(x y)$ is determined from the torque PSD rms amplitude.
-
-== Crack Growth Life
-
-Integrating the Paris law:
-
-$ N_p eq integral_(a_0)^(a_c) frac(d a, C lr((Delta K lr((a))))^m) $
-
-For $m eq.not 2$:
-
-$ N_p eq frac(2, lr((m minus 2)) C lr((Delta sigma))^m Y^m pi^(m slash 2)) lr((a_0^(1 minus m slash 2) minus a_c^(1 minus m slash 2))) $
-
-Critical crack size for unstable propagation:
-
-$ a_c eq 1 / pi lr((frac(K_(I C), Y dot.op sigma_(m a x))))^2 approx 30.4 upright(" mm") $
-
-== $Delta K$ Threshold Analysis
-
-#align(center)[#table(
-  columns: 7,
-  align: (col, row) => (left,left,left,left,left,left,left,).at(col),
-  inset: 6pt,
-  [Case], [Shaft Diameter], [$Delta tau_(x y)$], [$a_0$], [$Delta K$],
-  [Threshold], [Status],
-  [500 kW],
-  [50 mm],
-  [6.6 MPa],
-  [1.0 mm],
+  [a₀], [ΔK (MPa·m^0.5)], [门槛值], [结论],
+  [0.3 mm（UT 加严）],
+  [1.06],
+  [5~8],
+  [远低于门槛值],
+  [0.5 mm（UT 标准）],
   [1.38],
-  [5–8],
-  [$lt.double$ threshold],
-  [3200 kW],
-  [50 mm],
-  [2.1 MPa],
-  [1.0 mm],
-  [0.44],
-  [5–8],
-  [$lt.double$ threshold],
-  [3200 kW],
-  [100 mm],
-  [0.13 MPa],
-  [1.0 mm],
-  [0.03],
-  [5–8],
-  [$lt.double$ threshold],
-  [3200 kW],
-  [100 mm],
-  [0.13 MPa],
-  [0.5 mm],
-  [0.02],
-  [5–8],
-  [$lt.double$ threshold],
+  [5~8],
+  [低于门槛值],
+  [1.0 mm（UT 宽松）],
+  [1.95],
+  [5~8],
+  [低于门槛值],
 )
 ]
 
-#strong[All cases have $Delta K lt.double Delta K_(t h)$], indicating
-#strong[infinite crack growth life].
+即使在 3σ 峰值下 ΔK ≈ 4.1 MPa·m^0.5，仍低于 5 MPa·m^0.5 门槛值下限。
 
-== Random Load Spectral Integration
+[
+#strong[关键结论]：标准 NDT 条件下 ΔK \= 1.38 MPa·m^0.5，远低于门槛值
+5~8 MPa·m^0.5，#strong[裂纹不发生稳定扩展]。无需进行 Paris 积分。
+]
 
-For broadband random loading, the spectral form is:
+=== 6.4 随机载荷谱方法
 
-$ overline(frac(d a, d t)) eq E lr([P]) dot.op C dot.op integral_0^oo lr((Delta K))^m dot.op p_(R F) lr((S)) thin d S $
+对于宽带随机载荷，正确的扩展速率表达式为：
 
-Substituting $Delta sigma_(r m s)$ would underestimate crack growth rate
-by 3–10$times$ under AI data center conditions.
+da/dt 均值 \= E\[P\] · C · ∫ (ΔK)^m · p\_RF(S) dS
 
-= AI Data Center vs. Traditional UPS Comparison
+当 ΔK\_rms 远低于门槛值时，随机峰值也难以使 ΔK 持续超过门槛值。
 
-== Load Characteristic Comparison
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 7. AI 数据中心 vs 传统 UPS 对比
+
+=== 7.1 载荷特征
 
 #align(center)[#table(
   columns: 4,
-  align: (col, row) => (left,left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,auto,).at(col),
   inset: 6pt,
-  [Feature], [Traditional UPS], [AI Data Center], [Difference],
-  [Excitation source],
-  [Grid fluctuation (0.01–0.5 Hz)],
-  [GPU power noise (10 Hz–1 kHz)],
-  [2–5 orders],
-  [Annual cycles],
-  [$10^5 upright("–") 10^6$],
-  [$10^8 upright("–") 10^9$],
-  [$10^2 upright("–") 10^3 times$],
-  [Bandwidth],
-  [Narrowband],
-  [Broadband continuum],
-  [Fundamental],
-  [Dynamic stress ratio],
-  [$lt$ 5% centrifugal],
-  [5%–15% centrifugal],
-  [3–5$times$],
-  [Resonance risk],
-  [Single-point crossing],
-  [Persistent broadband],
-  [Fundamental],
-  [Non-Gaussianity],
-  [Near-Gaussian],
-  [Crest factor 4–6],
-  [\$$2$\$],
+  [特征], [传统 UPS], [AI 数据中心], [差异],
+  [激励源],
+  [电网 0.01~0.5 Hz],
+  [GPU 10 Hz~1 kHz],
+  [2~5 数量级],
+  [年循环数],
+  [10⁵~10⁶],
+  [10⁸~10⁹],
+  [10²~10³ 倍],
+  [带宽],
+  [窄带],
+  [宽带连续谱],
+  [根本性变化],
+  [动态应力比],
+  [\<5% 离心应力],
+  [5%~15% 离心应力],
+  [3~5 倍],
+  [共振风险],
+  [避开离散点],
+  [持续宽带覆盖],
+  [设计范式变化],
 )
 ]
 
-== Lifetime Assessment Comparison
+=== 7.2 寿命评估
 
 #align(center)[#table(
   columns: 4,
-  align: (col, row) => (left,left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,auto,).at(col),
   inset: 6pt,
-  [Assessment], [Traditional UPS], [AI Data Center], [Conclusion],
-  [Static margin],
-  [\$$2.5$\$],
-  [\$$2.5$\$],
-  [Equivalent],
-  [HCF life],
-  [$gt 10^9$ (infinite)],
-  [$10^8 upright("–") 10^9$],
-  [Reduces 1–2 orders],
-  [Crack growth],
-  [$gt 10^11$ (negligible)],
-  [$10^7 upright("–") 10^8$ cyc.],
-  [Needs monitoring],
-  [Dominant failure],
-  [Overload/bearing],
-  [HCF + crack growth],
-  [Fundamental shift],
+  [评估项], [传统 UPS], [AI 数据中心], [结论],
+  [静强度裕度],
+  [1.4~1.6],
+  [1.42],
+  [相当],
+  [疲劳萌生],
+  [无限 (\>10⁷)],
+  [无限 (\>10⁷)],
+  [均为无限],
+  [裂纹扩展],
+  [ΔK \<\< ΔK\_th（无限）],
+  [ΔK\=1.38 \< 5~8（无限）],
+  [均为无限],
+  [主导失效],
+  [过载/轴承],
+  [轴承/电子元件老化],
+  [转子非瓶颈],
 )
 ]
 
-== Power Scalability
-
-The analysis was extended to 3200 kW by mechanical self-scaling:
-
-#blockquote[
-For a torque increase of 6.4$times$, shaft diameter scales by
-$root(3, T)$, or approximately 1.9$times$. The resulting dynamic stress
-increases by only 1.1$times$, remaining far below the fatigue limit.
+[
+#strong[关键结论]：标准制造和检测条件下，25Cr2Ni4MoV 转子在 AI
+数据中心工况的疲劳寿命与传统 UPS 无本质差异，均为无限寿命。AI
+工况对转子动力学设计的影响大于对疲劳寿命的影响。
 ]
 
-#strong[Key insight]: The rotor fatigue life conclusion is
-#strong[scale-invariant] across 500 kW–3200 kW due to the cube-root
-diameter scaling of torsional stress.
+\
+#line(length: 100%, stroke: 0.4pt)
 
-= Conclusion
+== 8. 工程结论与设计准则
 
-== Core Findings
-
-+ #strong[Infinite fatigue initiation life]: The Gerber-corrected
-  equivalent stress amplitude (41.6 MPa) is far below the fatigue limit
-  (550 MPa), yielding a safety margin of 13.2$times$.
-
-+ #strong[Infinite crack growth life]: All examined cases show
-  $Delta K lt.double Delta K_(t h)$ (1.38 MPa$dot.op$m$'^(1 slash 2)$
-  vs. threshold 5–8 MPa$dot.op$m$'^(1 slash 2)$), providing no crack
-  propagation driving force under standard NDT conditions.
-
-+ #strong[Scale invariance]: The infinite fatigue life conclusion holds
-  for both 500 kW and 3200 kW systems due to mechanical self-scaling
-  properties.
-
-+ #strong[Actual life-limiting components]: Bearing system life (15–20
-  years) and power electronics service life (10–15 years) determine the
-  practical system lifetime.
-
-== Recommended Design Criteria
+=== 8.1 核心数据结论
 
 #align(center)[#table(
   columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,).at(col),
   inset: 6pt,
-  [Criterion], [Requirement], [Basis],
-  [1st torsional frequency],
-  [$f_(n 1) gt 100$ Hz],
-  [Avoid GPU PSD high-energy band],
-  [Initial defect limit],
-  [$a_0 lt.eq 0.5$ mm],
-  [Standard NDT],
-  [Safety factor],
-  [$D lt 0.5$],
-  [Conservative Miner criterion],
-  [Crack growth SF],
-  [$2 times$],
-  [Load statistical uncertainty],
+  [评估维度], [数值], [条件],
+  [静强度安全系数（屈服）],
+  [930/657 \= 1.42],
+  [最高转速],
+  [疲劳萌生寿命],
+  [无限（\>10⁷ 次）],
+  [无需特殊条件],
+  [裂纹扩展寿命（标准 UT）],
+  [无限（ΔK\=1.38 \< 门槛值 5~8）],
+  [a₀ ≤ 0.5 mm],
+  [20 年等效累计循环],
+  [~6.3×10¹⁰ 次],
+  [50 Hz 特征频率],
+  [功率扩展范围],
+  [500 kW~3200 kW],
+  [结论一致],
 )
 ]
 
-== Online Monitoring
+=== 8.2 系统寿命控制因素
 
-- #strong[Shaft torsional vibration]: Fiber-optic sensor, 1 kHz sampling
-- #strong[Radial displacement]: Laser probes for early crack detection
-- #strong[Bus power monitoring]: 2 MHz sampling for torque PSD
-  estimation
-- #strong[Acoustic emission]: 150 kHz center frequency for crack growth
-  events
++ 轴承系统寿命：15~20 年（磁悬浮电子元件或机械轴承）
++ 电力电子器件寿命（SiC MOSFET, 电容）：10~15 年
++ 真空度维持：10~15 年
++ 转子本体疲劳：#strong[\>20 年（无限寿命）]
 
-== Design Optimization
+=== 8.3 设计准则检查表
 
-+ Material: 25Cr2Ni4MoV with surface nitriding ($S_e$ to 580–620 MPa)
-+ Resonance: Increase shaft diameter to push $f_(n 1) gt 150$ Hz
-+ Active damping: Virtual torsional damper via SiC DC/DC control
-+ Input filtering: SST DC-link LC filter with $f_c approx 100$ Hz
+==== A. 材料层级
 
-= Appendix A: 3200 kW System Verification
+#align(center)[#table(
+  columns: 3,
+  align: (col, row) => (auto,auto,auto,).at(col),
+  inset: 6pt,
+  [准则], [要求], [验证方法],
+  [材料],
+  [25Cr2Ni4MoV 或等效],
+  [质保书+复检],
+  [屈服强度],
+  [≥930 MPa],
+  [拉伸试验],
+  [疲劳极限 (10⁷)],
+  [≥500 MPa],
+  [旋转弯曲疲劳],
+  [断裂韧性 K\_IC],
+  [≥120 MPa·m^0.5],
+  [CTOD 试验],
+  [UT 标准],
+  [a₀ ≤ 0.5 mm],
+  [GB/T 6402-2018 2 级],
+  [MPI],
+  [a₀ ≤ 0.3 mm],
+  [NB/T 47013.4],
+)
+]
 
-== Scaling Analysis
+==== B. 结构层级
 
-The 3200 kW system verification uses the same 25Cr2Ni4MoV rotor material
-but with adjusted geometry for the higher power rating.
+#align(center)[#table(
+  columns: 3,
+  align: (col, row) => (auto,auto,auto,).at(col),
+  inset: 6pt,
+  [准则], [要求], [措施],
+  [轴肩 K\_t],
+  [≤2.0],
+  [R ≥ 0.1D 过渡圆角],
+  [一阶扭频],
+  [f\_n1 \> 100 Hz],
+  [增轴径或缩短],
+  [静强度安全系数],
+  [≥1.4],
+  [验证最高转速],
+  [疲劳安全系数],
+  [D \< 0.3],
+  [PSD 疲劳分析],
+)
+]
 
-=== Torque Scaling
+==== C. 工况层级
 
-$ T_3200 / T_500 eq 3200 / 500 eq 6.4 $
+#align(center)[#table(
+  columns: 2,
+  align: (col, row) => (auto,auto,).at(col),
+  inset: 6pt,
+  [准则], [要求],
+  [SiC DC/DC 控制],
+  [植入陷波滤波器],
+  [虚拟扭振阻尼],
+  [主动阻尼 ≥5%],
+  [在线监测],
+  [扭振+声发射],
+  [定检周期],
+  [每 3 年 UT 复查],
+)
+]
 
-=== Shaft Diameter Scaling (Stress-Limited)
+=== 8.4 在线监测配置
 
-For constant torsional stress:
+- 轴端扭振光纤传感器（1 kHz 采样）
+- 激光径向位移探头
+- SiC DC/DC 侧 2 MHz 瞬时功率监测
+- 声发射传感器（150 kHz）
+- 轴承状态监测（加速度、温度、转速）
 
-$ D_3200 / D_500 eq root(3, T_3200 / T_500) eq root(3, 6.4) approx 1.86 $
+=== 8.5 设计寿命总结
 
-=== Resulting Dynamic Stress
+#strong[转子本体寿命]：≥20 年，疲劳和断裂力学双维度验证为无限寿命。
 
-For 50 mm shaft (unchanged diameter, magnetic bearings):
-$ Delta tau_(x y comma 3200 comma 50 m m) eq 6.6 times 500 / 3200 times frac(18 comma 000, 25 comma 000) approx 2.1 upright(" MPa") $
+#strong[系统整体寿命]：10~15 年，受限于轴承和电力电子器件。
 
-For 100 mm shaft (scaled):
-$ Delta tau_(x y comma 3200 comma 100 m m) eq 2.1 times lr((50 / 100))^3 approx 0.13 upright(" MPa") $
+#strong[功率扩展性]：适用于 500 kW~3200 kW 范围。
 
-=== $Delta K$ Verification
+#strong[充放电次数]：不适用——飞轮持续旋转，不执行启停循环。
+
+\
+#line(length: 100%, stroke: 0.4pt)
+
+== 附录 A：3200 kW 功率扩展验算
+
+=== A.1 基础参数
+
+#align(center)[#table(
+  columns: 3,
+  align: (col, row) => (auto,auto,auto,).at(col),
+  inset: 6pt,
+  [参数], [500 kW], [3200 kW],
+  [额定转速],
+  [18,000 rpm],
+  [18,000 rpm],
+  [基础转矩],
+  [265 Nm],
+  [1,698 Nm],
+  [轴颈直径],
+  [40~60 mm],
+  [50~150 mm],
+  [DN 值],
+  [不适用（磁悬浮）],
+  [不适用（磁悬浮）],
+)
+]
+
+=== A.2 应力计算结果
 
 #align(center)[#table(
   columns: 6,
-  align: (col, row) => (left,left,left,left,left,left,).at(col),
+  align: (col, row) => (auto,auto,auto,auto,auto,auto,).at(col),
   inset: 6pt,
-  [Shaft (mm)], [$Delta tau_(x y)$ (MPa)], [$a_0$ (mm)], [$Delta K$
-  (MPa·m$'^(1 slash 2)$)], [Threshold], [Status],
+  [轴径 (mm)], [τ\_alt (MPa)], [σ\_a,eff (MPa)], [Gerber 等效],
+  [安全裕度], [ΔK],
   [50],
-  [2.1],
-  [1.0],
-  [0.44],
-  [5–8],
-  [Safe],
+  [4.15],
+  [21.68],
+  [29.17],
+  [19×],
+  [0.86],
+  [80],
+  [1.01],
+  [5.29],
+  [7.12],
+  [77×],
+  [0.21],
   [100],
-  [0.13],
-  [1.0],
+  [0.52],
+  [2.71],
+  [3.65],
+  [151×],
+  [0.11],
+  [120],
+  [0.30],
+  [1.57],
+  [2.11],
+  [261×],
+  [0.06],
+  [150],
+  [0.15],
+  [0.80],
+  [1.08],
+  [509×],
   [0.03],
-  [5–8],
-  [Safe],
-  [100],
-  [0.13],
-  [0.5],
-  [0.02],
-  [5–8],
-  [Safe],
 )
 ]
 
-=== Centrifugal Stress at Higher Speed
+=== A.3 结论
 
-For 3200 kW, higher speed (25,000 rpm) may be used:
+所有可行轴径下：疲劳安全裕度 ≥19×，ΔK ≤ 0.86 MPa·m^0.5 ≪ 门槛值 5~8。
 
-$ sigma_(c e n t comma m a x comma 3200) eq 532 times lr((frac(25 comma 000, 18 comma 000)))^2 approx 1026 upright(" MPa") $
+→ 疲劳萌生：无限寿命；裂纹扩展：无限寿命；转子本体寿命：≥20 年。
 
-This approaches yield strength (1,050 MPa). #strong[Design
-recommendation]: If $n_(m a x) gt 22 comma 000$ rpm, use larger shaft
-diameter or material upgrade.
+\
+#line(length: 100%, stroke: 0.4pt)
 
-== Appendix B: Key Notation
-
-#align(center)[#table(
-  columns: 3,
-  align: (col, row) => (left,left,left,).at(col),
-  inset: 6pt,
-  [Symbol], [Description], [Unit],
-  [$D$],
-  [Rotor diameter],
-  [mm],
-  [$E$],
-  [Young’s modulus],
-  [GPa],
-  [$K_(I C)$],
-  [Fracture toughness],
-  [MPa·m$'^(1 slash 2)$],
-  [$Delta K$],
-  [SIF range],
-  [MPa·m$'^(1 slash 2)$],
-  [$Delta K_(t h)$],
-  [Threshold SIF range],
-  [MPa·m$'^(1 slash 2)$],
-  [$S_e$],
-  [Fatigue limit],
-  [MPa],
-  [$sigma_a$],
-  [Alternating stress],
-  [MPa],
-  [$sigma_m$],
-  [Mean stress],
-  [MPa],
-  [$sigma_y$],
-  [Yield strength],
-  [MPa],
-  [$sigma_b$],
-  [Ultimate strength],
-  [MPa],
-  [$tau_(x y)$],
-  [Shear stress],
-  [MPa],
-  [$f_(s w)$],
-  [SiC switching frequency],
-  [kHz],
-  [$omega$],
-  [Angular velocity],
-  [rad/s],
-  [$Gamma lr((f))$],
-  [Coherence function],
-  [—],
-)
-]
+#emph[本报告使用的全部公式均有可溯源的工程力学和断裂力学理论依据。转子核心参数基于泓慧能源
+φ430 mm 25Cr2Ni4MoV
+飞轮转子的实际数据。疲劳和断裂分析参数来自公开文献和标准试验数据。]
+#bibliography("refs.bib", style: "ieee")
