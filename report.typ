@@ -23,7 +23,7 @@
 )
 
 // ---- Typography ----
-#set text(font: ("New Computer Modern"), size: 10pt, lang: "en")
+#set text(font: ("New Computer Modern", "Noto Sans CJK SC"), size: 10pt, lang: "en")
 #set par(justify: true, leading: 0.65em, first-line-indent: 1.5em)
 
 // ---- Headings ----
