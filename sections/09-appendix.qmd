@@ -1,0 +1,58 @@
+# Appendix A: 3200 kW System Verification
+
+## Scaling Analysis
+
+The 3200 kW system verification uses the same 25Cr2Ni4MoV rotor material but with adjusted geometry for the higher power rating.
+
+### Torque Scaling
+
+$$ \frac{T_{3200}}{T_{500}} = \frac{3200}{500} = 6.4 $$
+
+### Shaft Diameter Scaling (Stress-Limited)
+
+For constant torsional stress:
+
+$$ \frac{D_{3200}}{D_{500}} = \sqrt[3]{\frac{T_{3200}}{T_{500}}} = \sqrt[3]{6.4} \approx 1.86 $$
+
+### Resulting Dynamic Stress
+
+For 50 mm shaft (unchanged diameter, magnetic bearings):
+$$ \Delta\tau_{xy,3200,50mm} = 6.6 \times \frac{500}{3200} \times \frac{18,000}{25,000} \approx 2.1 \text{ MPa} $$
+
+For 100 mm shaft (scaled):
+$$ \Delta\tau_{xy,3200,100mm} = 2.1 \times \left(\frac{50}{100}\right)^3 \approx 0.13 \text{ MPa} $$
+
+### $\Delta K$ Verification
+
+| Shaft (mm) | $\Delta\tau_{xy}$ (MPa) | $a_0$ (mm) | $\Delta K$ (MPa·m$^{1/2}$) | Threshold | Status |
+|:-----------|:----------------------|:-----------|:--------------------------|:----------|:-------|
+| 50 | 2.1 | 1.0 | 0.44 | 5--8 | Safe |
+| 100 | 0.13 | 1.0 | 0.03 | 5--8 | Safe |
+| 100 | 0.13 | 0.5 | 0.02 | 5--8 | Safe |
+
+### Centrifugal Stress at Higher Speed
+
+For 3200 kW, higher speed (25,000 rpm) may be used:
+
+$$ \sigma_{cent,max,3200} = 532 \times \left(\frac{25,000}{18,000}\right)^2 \approx 1026 \text{ MPa} $$
+
+This approaches yield strength (1,050 MPa). **Design recommendation**: If $n_{max} > 22,000$ rpm, use larger shaft diameter or material upgrade.
+
+## Appendix B: Key Notation
+
+| Symbol | Description | Unit |
+|:-------|:------------|:-----|
+| $D$ | Rotor diameter | mm |
+| $E$ | Young's modulus | GPa |
+| $K_{IC}$ | Fracture toughness | MPa·m$^{1/2}$ |
+| $\Delta K$ | SIF range | MPa·m$^{1/2}$ |
+| $\Delta K_{th}$ | Threshold SIF range | MPa·m$^{1/2}$ |
+| $S_e$ | Fatigue limit | MPa |
+| $\sigma_a$ | Alternating stress | MPa |
+| $\sigma_m$ | Mean stress | MPa |
+| $\sigma_y$ | Yield strength | MPa |
+| $\sigma_b$ | Ultimate strength | MPa |
+| $\tau_{xy}$ | Shear stress | MPa |
+| $f_{sw}$ | SiC switching frequency | kHz |
+| $\omega$ | Angular velocity | rad/s |
+| $\Gamma(f)$ | Coherence function | — |

@@ -1,0 +1,58 @@
+project:
+  type: book
+  output-dir: output
+
+book:
+  title: "Flywheel Rotor Fatigue Life & Dynamic Reliability Assessment for AI Mega-Cluster DC-Bus Systems"
+  subtitle: "工程与科研双版 — IEEE Typst 专业排版"
+  author: "Technical Report"
+  date: "2026-05-21"
+  chapters:
+    - index.qmd
+    - sections/01-introduction.qmd
+    - sections/02-system-modeling.qmd
+    - sections/03-torsional-vibration.qmd
+    - sections/04-stress-analysis.qmd
+    - sections/05-fatigue-assessment.qmd
+    - sections/06-crack-propagation.qmd
+    - sections/07-comparison.qmd
+    - sections/08-conclusion.qmd
+    - sections/09-appendix.qmd
+    - references.qmd
+
+bibliography: refs.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/ieee.csl
+
+format:
+  typst:
+    template: typst-template.typ
+    toc: true
+    toc-title: "Contents"
+    number-sections: true
+    columns: 2
+    fontsize: 10pt
+    linestretch: 1.0
+    papersize: a4
+    margin:
+      top: 25mm
+      bottom: 25mm
+      left: 22mm
+      right: 22mm
+    mainfont: "New Computer Modern"
+    mathfont: "STIX Two Math"
+    monofont: "JetBrains Mono"
+    code-block-bg: "#f5f5f5"
+    code-block-border-color: "#cccccc"
+    fig-format: svg
+    fig-dpi: 300
+    fig-width: 6.5
+    fig-height: 4.5
+    bibliography: refs.bib
+    reference-section-title: "References"
+
+execute:
+  freeze: auto
+  warning: false
+  message: false
+
+lang: en

@@ -1,0 +1,38 @@
+# Introduction
+
+## Background
+
+The rapid scaling of AI computing infrastructure has introduced unprecedented challenges in power delivery and backup energy storage. Modern GPU mega-clusters, comprising 10,000+ accelerators, exhibit highly dynamic power consumption profiles characterized by broadband fluctuations spanning 10 Hz to 10 kHz [@google-borg-2021]. These fluctuations arise from computation synchronization events (All-Reduce, gradient checkpointing), inference request burstiness, and thermal management cycles, creating a fundamentally different load regime compared to traditional data center UPS applications.
+
+## Problem Statement
+
+Flywheel energy storage systems (FESS) coupled to 800V DC buses through SiC DC/DC converters and solid-state transformers (SST) have emerged as a promising solution for AI data center power quality management and short-duration backup. However, the existing fatigue life assessment framework for flywheel rotors is predicated on narrowband grid-frequency excitation (0.01--0.5 Hz), which is fundamentally inadequate for AI data center conditions.
+
+The critical engineering questions are:
+
+1. **Fatigue initiation**: Under broadband random torque excitation, does the rotor's fatigue life remain infinite as in traditional UPS scenarios?
+2. **Crack propagation**: What is the crack growth life from manufacturing defects under AI data center load spectra?
+3. **Power scalability**: Does the fatigue life conclusion hold across the 500 kW--3200 kW power range?
+
+## Research Scope
+
+This report establishes a full-chain coupling fatigue analysis framework covering:
+
+- **Section 2**: System modeling -- GPU power spectral density, SiC electromagnetic coupling
+- **Section 3**: Torsional vibration and Campbell analysis
+- **Section 4**: Steady-state and dynamic stress decomposition
+- **Section 5**: PSD-based broadband random fatigue assessment
+- **Section 6**: Paris-law crack propagation analysis
+- **Section 7**: Quantitative comparison with traditional UPS methodology
+- **Section 8**: Engineering conclusions and design recommendations
+
+## Methodology Overview
+
+The analysis methodology integrates multiple engineering domains:
+
+- **Power electronics**: SiC DC/DC converter ripple modeling with space vector PWM harmonics
+- **Structural dynamics**: Continuum torsional vibration with Rayleigh-Ritz modal truncation
+- **Fatigue mechanics**: PSD-based Dirlik broadband rainflow with Basquin S-N curve
+- **Fracture mechanics**: Paris-Erdogan law with random load spectral integration
+
+All calculations are based on the 25Cr2Ni4MoV forged steel rotor ($\phi$430 mm, 20,000 rpm) from Honghui Energy's commercial FESS product, with material properties validated against ASTM A471 and GB/T 3310-2019 standards.

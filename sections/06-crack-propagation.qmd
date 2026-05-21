@@ -1,0 +1,63 @@
+# Crack Propagation Analysis
+
+## Fracture Mechanics Foundation
+
+Assume manufacturing NDT (UT/MPI) detects defects less than inspection limits:
+
+- Internal forging defects: $a_0 \approx 0.5\text{--}1.0$ mm (UT limit)
+- Surface defects: $a_0 \approx 0.1\text{--}0.3$ mm (MPI limit)
+
+## Paris Law
+
+Crack growth under cyclic loading follows the Paris-Erdogan relation:
+
+$$ \frac{da}{dN} = C(\Delta K)^m $$
+
+The stress intensity factor range:
+
+$$ \Delta K = Y(a) \cdot \Delta\sigma \cdot \sqrt{\pi a} $$
+
+For 25Cr2Ni4MoV (quenched + tempered, $K_{IC} \approx 130$ MPa$\cdot$m$^{1/2}$) [@cui-2015]:
+
+$$ \frac{da}{dN} = 2.1 \times 10^{-12} \cdot (\Delta K)^{3.2} \quad (\text{m/cycle, MPa·m}^{1/2}) $$
+
+## Mode II/III Dominance
+
+Under torsional excitation, the cyclic crack driving force is:
+
+$$ \Delta K_{II/III} = Y_{II/III} \cdot \Delta\tau_{xy} \cdot \sqrt{\pi a} $$
+
+where $\Delta\tau_{xy}$ is determined from the torque PSD rms amplitude.
+
+## Crack Growth Life
+
+Integrating the Paris law:
+
+$$ N_p = \int_{a_0}^{a_c} \frac{da}{C(\Delta K(a))^m} $$
+
+For $m \neq 2$:
+
+$$ N_p = \frac{2}{(m-2)C(\Delta\sigma)^m Y^m \pi^{m/2}} \left( a_0^{1-m/2} - a_c^{1-m/2} \right) $$
+
+Critical crack size for unstable propagation:
+
+$$ a_c = \frac{1}{\pi} \left( \frac{K_{IC}}{Y \cdot \sigma_{max}} \right)^2 \approx 30.4 \text{ mm} $$
+
+## $\Delta K$ Threshold Analysis
+
+| Case | Shaft Diameter | $\Delta\tau_{xy}$ | $a_0$ | $\Delta K$ | Threshold | Status |
+|:-----|:--------------|:-----------------|:------|:-----------|:----------|:-------|
+| 500 kW | 50 mm | 6.6 MPa | 1.0 mm | 1.38 | 5--8 | $\ll$ threshold |
+| 3200 kW | 50 mm | 2.1 MPa | 1.0 mm | 0.44 | 5--8 | $\ll$ threshold |
+| 3200 kW | 100 mm | 0.13 MPa | 1.0 mm | 0.03 | 5--8 | $\ll$ threshold |
+| 3200 kW | 100 mm | 0.13 MPa | 0.5 mm | 0.02 | 5--8 | $\ll$ threshold |
+
+**All cases have $\Delta K \ll \Delta K_{th}$**, indicating **infinite crack growth life**.
+
+## Random Load Spectral Integration
+
+For broadband random loading, the spectral form is:
+
+$$ \overline{\frac{da}{dt}} = E[P] \cdot C \cdot \int_0^\infty (\Delta K)^m \cdot p_{RF}(S) \, dS $$
+
+Substituting $\Delta\sigma_{rms}$ would underestimate crack growth rate by 3--10$\times$ under AI data center conditions.

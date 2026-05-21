@@ -1,0 +1,34 @@
+# Conclusion
+
+## Core Findings
+
+1. **Infinite fatigue initiation life**: The Gerber-corrected equivalent stress amplitude (41.6 MPa) is far below the fatigue limit (550 MPa), yielding a safety margin of 13.2$\times$.
+
+2. **Infinite crack growth life**: All examined cases show $\Delta K \ll \Delta K_{th}$ (1.38 MPa$\cdot$m$^{1/2}$ vs. threshold 5--8 MPa$\cdot$m$^{1/2}$), providing no crack propagation driving force under standard NDT conditions.
+
+3. **Scale invariance**: The infinite fatigue life conclusion holds for both 500 kW and 3200 kW systems due to mechanical self-scaling properties.
+
+4. **Actual life-limiting components**: Bearing system life (15--20 years) and power electronics service life (10--15 years) determine the practical system lifetime.
+
+## Recommended Design Criteria
+
+| Criterion | Requirement | Basis |
+|:----------|:------------|:------|
+| 1st torsional frequency | $f_{n1} > 100$ Hz | Avoid GPU PSD high-energy band |
+| Initial defect limit | $a_0 \le 0.5$ mm | Standard NDT |
+| Safety factor | $D < 0.5$ | Conservative Miner criterion |
+| Crack growth SF | $2\times$ | Load statistical uncertainty |
+
+## Online Monitoring
+
+- **Shaft torsional vibration**: Fiber-optic sensor, 1 kHz sampling
+- **Radial displacement**: Laser probes for early crack detection
+- **Bus power monitoring**: 2 MHz sampling for torque PSD estimation
+- **Acoustic emission**: 150 kHz center frequency for crack growth events
+
+## Design Optimization
+
+1. Material: 25Cr2Ni4MoV with surface nitriding ($S_e$ to 580--620 MPa)
+2. Resonance: Increase shaft diameter to push $f_{n1} > 150$ Hz
+3. Active damping: Virtual torsional damper via SiC DC/DC control
+4. Input filtering: SST DC-link LC filter with $f_c \approx 100$ Hz

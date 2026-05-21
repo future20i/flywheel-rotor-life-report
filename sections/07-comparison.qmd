@@ -1,0 +1,29 @@
+# AI Data Center vs. Traditional UPS Comparison
+
+## Load Characteristic Comparison
+
+| Feature | Traditional UPS | AI Data Center | Difference |
+|:--------|:---------------|:---------------|:-----------|
+| Excitation source | Grid fluctuation (0.01--0.5 Hz) | GPU power noise (10 Hz--1 kHz) | 2--5 orders |
+| Annual cycles | $10^5\text{--}10^6$ | $10^8\text{--}10^9$ | $10^2\text{--}10^3\times$ |
+| Bandwidth | Narrowband | Broadband continuum | Fundamental |
+| Dynamic stress ratio | $<$ 5\% centrifugal | 5\%--15\% centrifugal | 3--5$\times$ |
+| Resonance risk | Single-point crossing | Persistent broadband | Fundamental |
+| Non-Gaussianity | Near-Gaussian | Crest factor 4--6 | $\sim$2$\times$ |
+
+## Lifetime Assessment Comparison
+
+| Assessment | Traditional UPS | AI Data Center | Conclusion |
+|:-----------|:---------------|:---------------|:-----------|
+| Static margin | $\sim$2.5$\times$ | $\sim$2.5$\times$ | Equivalent |
+| HCF life | $>10^9$ (infinite) | $10^8\text{--}10^9$ | Reduces 1--2 orders |
+| Crack growth | $>10^{11}$ (negligible) | $10^7\text{--}10^8$ cyc. | Needs monitoring |
+| Dominant failure | Overload/bearing | HCF + crack growth | Fundamental shift |
+
+## Power Scalability
+
+The analysis was extended to 3200 kW by mechanical self-scaling:
+
+> For a torque increase of 6.4$\times$, shaft diameter scales by $\sqrt[3]{T}$, or approximately 1.9$\times$. The resulting dynamic stress increases by only 1.1$\times$, remaining far below the fatigue limit.
+
+**Key insight**: The rotor fatigue life conclusion is **scale-invariant** across 500 kW--3200 kW due to the cube-root diameter scaling of torsional stress.

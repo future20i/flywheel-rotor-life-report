@@ -1,0 +1,64 @@
+# System Modeling
+
+## Flywheel Rotor Physical Parameters
+
+Table 1 summarizes the core physical parameters of the Honghui Energy 25Cr2Ni4MoV forged steel rotor.
+
+```{r}
+#| label: tbl-parameters
+#| tbl-cap: "SYSTEM PARAMETERS"
+#| echo: false
+
+library(knitr)
+params <- data.frame(
+  Parameter = c("Material", "Diameter $D$ (mm)", "Density $\\rho$ (kg/m³)", 
+                "Young's Modulus $E$ (GPa)", "Poisson Ratio $\\nu$",
+                "Yield Strength $\\sigma_y$ (MPa)", "Ultimate Strength $\\sigma_b$ (MPa)",
+                "Fatigue Limit $S_e$ (MPa)", "Fracture Toughness $K_{IC}$ (MPa·m¹ᐟ²)",
+                "Max Speed $n_{\\max}$ (rpm)", "Rated Speed $n_{\\text{rated}}$ (rpm)",
+                "Moment of Inertia $J$ (kg·m²)", "Rotor Mass $m$ (kg)"),
+  Value = c("25Cr2Ni4MoV", "430", "7,850", "206", "0.30", "930", "1,050",
+            "550", "120--145", "20,000", "18,000", "42.5", "860"),
+  Source = c("—", "Honghui", "GB/T 3310", "GB/T 3310", "ASTM A471",
+             "Honghui", "Honghui", "Honghui", "CTOD Test",
+             "Honghui", "Honghui", "Computed", "Computed")
+)
+kable(params, col.names = c("Parameter", "Value", "Source"), booktabs = TRUE)
+```
+
+## AI GPU Cluster Power Spectrum Model
+
+### GPU Load Temporal Hierarchy
+
+The defining characteristic of AI data center loads is their multiscale temporal structure. Define the instantaneous GPU cluster bus power as:
+
+$$ P_{GPU}(t) = P_{base} + \sum_{i=1}^{N} \Delta P_i \cdot \text{Rect}_{[t_i, t_i+\tau_i]}(t) + P_{noise}(t) $$
+
+where $P_{base}$ is the baseline power, $\Delta P_i$ is the amplitude of the $i$-th power pulse, and $P_{noise}(t)$ represents residual stochastic components.
+
+| Event | Timescale | Power Change | Mechanism |
+|:------|:----------|:-------------|:----------|
+| All-Reduce sync | 100 $\mu$s--10 ms | +30\%--+80\% | Gradient aggregation |
+| Checkpoint I/O | 10--100 ms | +20\%--+50\% | PCIe/NVLink burst |
+| Forward/Backward | 1--100 ms | ±10\%--±30\% | Pipeline alternation |
+| Batch transition | 10--200 ms | -40\%---80\% | Pipeline drain |
+| Inference spike | 1 $\mu$s--1 ms | +5\%--+30\% | Request scaling |
+
+For mega-clusters, these fluctuations superimpose rather than cancel. Field measurements show that normalized spectral density of total cluster power exceeds $-20$ dB across 10 Hz--1 kHz [@google-borg-2021; @meta-isca-2023].
+
+### GPU Power PSD Model
+
+Define the normalized power spectral density of a single GPU:
+
+$$ S_{GPU}(f) = \frac{P_{pk}^2}{2\pi f_c} \cdot \frac{1}{1 + (f/f_c)^2} + \sum_{k=1}^{N} A_k \cdot \delta(f - f_k) + W(f) $$
+
+where:
+- **Term 1**: Lorentzian continuum, cutoff $f_c \approx 50$ Hz
+- **Term 2**: Discrete line spectrum at computed rhythms $f_k$
+- **Term 3**: White noise floor $W(f) = \sigma_{noise}^2$
+
+For the mega-cluster, the equivalent PSD becomes:
+
+$$ S_{cluster}(f) = N_{GPU} \cdot S_{GPU}(f) \cdot \Gamma(f) $$
+
+where $\Gamma(f)$ is the coherence function, $\Gamma \approx 0.3\text{--}0.6$ at low frequencies ($<$ 50 Hz) and $\Gamma \to N_{GPU}^{-1}$ at high frequencies.

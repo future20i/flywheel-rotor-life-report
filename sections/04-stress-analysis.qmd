@@ -1,0 +1,63 @@
+# Stress Analysis and Load Decomposition
+
+## Steady-State Centrifugal Stress
+
+At rated speed (18,000 rpm, $\omega = 1885$ rad/s), centrifugal stress dominates. For a uniform solid disk:
+
+$$ \sigma_r(r) = \frac{3+\nu}{8}\rho\omega^2(R^2 - r^2) $$
+
+$$ \sigma_\theta(r) = \frac{3+\nu}{8}\rho\omega^2\left(R^2 - \frac{1+3\nu}{3+\nu}r^2\right) $$
+
+Maximum stress at the rotor center:
+
+$$ \sigma_{max} = \sigma_r(0) = \sigma_\theta(0) = \frac{3+\nu}{8}\rho\omega^2R^2 $$
+
+Substituting $R = 0.215$ m for the $\phi$430 mm rotor:
+
+$$ \sigma_{max,centrifugal} \approx \frac{3+0.3}{8} \times 7850 \times (1885)^2 \times 0.215^2 \approx 532 \text{ MPa} $$
+
+::: {.callout-note}
+## Steady Stress Distribution
+
+| Location | Stress (MPa) | Source |
+|:---------|:-------------|:-------|
+| Shaft center | 500--657 | FE (Honghui) |
+| Disk root ($R$ = 0.35 m) | 340--400 | FE |
+| Shaft shoulder transition | 260--320 | FE |
+| Bearing fit surface | 120--200 | FE |
+:::
+
+## Dynamic Stress Component
+
+Dynamic stress arises from electromagnetic torque fluctuations causing torsional shear stress:
+
+$$ \tau_{xy}(t,x) = \frac{T(t) \cdot r}{J(x)} $$
+
+The von Mises equivalent alternating stress amplitude:
+
+$$ \sigma_{vM,alt}(x) = \sqrt{3} \cdot \tau_{xy,alt}(x) $$
+
+### Correction Factors
+
+Critical stress concentration locations require correction:
+
+- **Fatigue notch factor**: $K_f = 1 + q(K_t - 1)$, where $q \approx 0.85\text{--}0.95$
+- **Size factor**: $\varepsilon \approx 0.6\text{--}0.75$ for sections $>$ 200 mm
+- **Surface factor**: $\beta \approx 0.85\text{--}0.95$ for ground surfaces
+
+Effective dynamic stress amplitude:
+
+$$ \sigma_{a,eff} = \frac{K_f}{\varepsilon \beta} \cdot \sigma_{a,nominal} $$
+
+### Numerical Example (500 kW Rotor)
+
+Assuming the torque fluctuation $T_{alt} \approx 2\%$ of rated torque ($\Delta T \approx 16$ N$\cdot$m):
+
+| Parameter | Value | Unit |
+|:----------|:------|:-----|
+| Torque fluctuation $\Delta T$ | 16 | N$\cdot$m |
+| Shear stress amplitude $\tau_{alt}$ | 6.6 | MPa |
+| von Mises stress $\sigma_{vM}$ | 11.5 | MPa |
+| $K_f/(\varepsilon\beta)$ | 3.0 | — |
+| **Effective stress $\sigma_{a,eff}$** | **34.7** | **MPa** |
+| Safety margin vs. $S_e$ (550 MPa) | **15.8$\times$** | — |

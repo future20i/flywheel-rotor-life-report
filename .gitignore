@@ -1,0 +1,3 @@
+output/
+*.pdf
+!flywheel-rotor-fatigue-report.pdf

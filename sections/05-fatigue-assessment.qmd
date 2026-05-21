@@ -1,0 +1,91 @@
+# Fatigue Life Assessment
+
+## Material S-N Curve
+
+The 25Cr2Ni4MoV S-N curve follows the Basquin equation:
+
+$$ \sigma_a(N_f) = \sigma_f' \cdot (2N_f)^b $$
+
+**Key fatigue parameters** (quenched + tempered):
+
+| Parameter | Value | Source |
+|:----------|:------|:-------|
+| $\sigma_f'$ | 3,890 MPa | ~$3.7\sigma_b$ |
+| $b$ | $-0.085$ | High-strength alloy |
+| Fatigue limit $S_e$ ($N = 10^7$) | 550 MPa | Rotating bending test |
+| Torsional fatigue limit $\tau_e$ | 318 MPa | $\tau_e \approx 0.577 S_e$ |
+
+## Static Strength vs. Fatigue Life
+
+A critical distinction must be made:
+
+| Criterion | Meaning | Condition |
+|:----------|:--------|:----------|
+| Static strength | Max load without failure | $\sigma_{max} < \sigma_y / S$ |
+| Fatigue life | Cyclic damage accumulation | $D = \sum n_i/N_{fi} < 1$ |
+| Fracture safety | Crack stability | $K_{max} < K_{IC}$ |
+
+The AI data center flywheel operates at stress levels well below static limits ($< 0.6\sigma_y$); **fatigue is the governing failure mode**.
+
+## PSD-Based Random Fatigue
+
+### Stress PSD Derivation
+
+From the electromagnetic torque PSD $S_{Te}(f)$:
+
+$$ S_{\sigma}(f, x) = |H_{TV}(f, x)|^2 \cdot S_{Te}(f) $$
+
+where $H_{TV}$ is the torsional vibration transfer function:
+
+$$ H_{TV}(f, x) = \sum_{r=1}^{N} \frac{\Phi^{(r)}(x) \cdot \Phi^{(r)}(x_e)}{1 - (f/f_n^{(r)})^2 + i \cdot 2\zeta_r (f/f_n^{(r)})} \cdot \frac{r_x}{J(x)} $$
+
+### Spectral Moments
+
+Define the $k$-th spectral moment:
+
+$$ m_k = \int_0^\infty f^k \cdot S_{\sigma}(f) \, df $$
+
+Key moments:
+- $m_0 = \sigma_{rms}^2$ (total variance)
+- $E[0] = \sqrt{m_2/m_0}$ (zero-crossing rate)
+- $E[P] = \sqrt{m_4/m_2}$ (peak rate)
+
+### Irregularity Factor
+
+$$ \gamma = \frac{m_2}{\sqrt{m_0 \cdot m_4}}, \quad 0 \le \gamma \le 1 $$
+
+For AI data center conditions: $\gamma \approx 0.3\text{--}0.6$ (broadband random).
+
+### Dirlik Rainflow Method
+
+The broadband stress amplitude distribution is directly approximated by the Dirlik formula [@dirlik-1985]:
+
+$$ p_{RF}(S) = \frac{1}{\sqrt{m_0}} \cdot \frac{D_1}{Q} e^{-Z/Q} + \frac{D_2 Z}{R^2} e^{-Z^2/(2R^2)} + D_3 Z e^{-Z^2/2} $$
+
+where $Z = S / \sqrt{m_0}$, with coefficients $D_1$, $D_2$, $D_3$, $Q$, $R$ derived from the spectral moments.
+
+### Miner Cumulative Damage
+
+Total damage over operating time $T$:
+
+$$ D = E[P] \cdot T \int_{0}^{\infty} \frac{p_{RF}(S)}{N_f(S)} \, dS $$
+
+**Fatigue limit**: For $D < D_{cr}$ (typically 1.0, conservatively 0.5--0.8).
+
+## Mean Stress Correction
+
+The steady centrifugal stress provides a non-zero mean stress. Using the **Gerber correction** (recommended for ductile steels):
+
+$$ \frac{\sigma_a}{S_e} + \left(\frac{\sigma_m}{\sigma_b}\right)^2 = 1 $$
+
+With $\sigma_m \approx 500$ MPa and $\sigma_b = 1,050$ MPa:
+
+| Correction | Equivalent $\sigma_a$ | Factor |
+|:-----------|:---------------------|:-------|
+| None | 34.7 MPa | 1.0$\times$ |
+| Goodman | 51.4 MPa | 1.48$\times$ |
+| **Gerber** | **41.6 MPa** | **1.20$\times$** |
+
+Safety margin vs. $S_e$ (550 MPa) with Gerber correction: **13.2$\times$**.
+
+**Conclusion**: The rotor has **infinite fatigue initiation life** under AI data center conditions.

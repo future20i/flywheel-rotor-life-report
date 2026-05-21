@@ -1,0 +1,65 @@
+# Electromagnetic Torque and Torsional Vibration
+
+## SiC DC/DC Coupling Path
+
+The flywheel system interfaces with the 800V DC bus via a SiC MOSFET DC/DC converter. The SiC switching frequency $f_{sw} = 20\text{--}50$ kHz introduces high-frequency torque ripple that must be modeled.
+
+The total electromagnetic torque is expressed as:
+
+$$ T_e(t) = T_{e0} + \Delta T_{e,load}(t) + \Delta T_{e,ripple}(t) $$
+
+### Load-Coupled Torque
+
+GPU power fluctuations transmitted through the DC/DC converter to the flywheel motor produce:
+
+$$ \Delta T_{e,load}(t) = \frac{1}{\omega_{FW}} \cdot \frac{P_{DC,bus}(t)}{\eta_{DC/DC}} \approx \frac{P_{GPU}(t)}{\omega_{FW} \cdot \eta_{DC/DC}} $$
+
+where $\omega_{FW}$ is the flywheel angular velocity and $\eta_{DC/DC} \approx 97.5\%$ is the SiC converter efficiency.
+
+### PWM Ripple Torque
+
+The PWM modulation introduces current harmonics that generate ripple torque:
+
+$$ \Delta T_{e,ripple}(t) = \frac{3}{2} p \left[ \Psi_{PM} \cdot \tilde{i}_q(t) + (L_d - L_q) \cdot \tilde{i}_d(t) \cdot \tilde{i}_q(t) \right] $$
+
+For a 500 kW PMSM flywheel motor, $|\Delta T_{e,ripple}|_{rms} \approx 0.5\text{--}2.5$ N$\cdot$m.
+
+### Synthesized Torque Spectrum
+
+The combined torque perturbation PSD is:
+
+$$ S_{Te}(f) = \frac{1}{\omega_{FW}^2 \eta^2} \cdot S_{GPU}(f) \cdot |H_{DC/DC}(f)|^2 + \sum_{m,n} \delta(f - (mf_{sw} \pm n f_e)) \cdot \Gamma_{ripple}^2 $$
+
+## Torsional Vibration Model
+
+### Continuum Torsion Equation
+
+The rotor is modeled as a continuous torsional system:
+
+$$ GJ(x)\frac{\partial^2 \theta(x,t)}{\partial x^2} - \rho J_p(x)\frac{\partial^2 \theta(x,t)}{\partial t^2} - c(x)\frac{\partial \theta(x,t)}{\partial t} = -T_e(t) \cdot \delta(x - x_e) $$
+
+where $\theta(x,t)$ is the angular displacement, $G$ the shear modulus (79.5 GPa for 25Cr2Ni4MoV), and $x_e$ the torque application point.
+
+### Modal Truncation
+
+Discretization via Rayleigh-Ritz yields the N-DOF system:
+
+$$ \mathbf{J}\ddot{\boldsymbol{\theta}}(t) + \mathbf{C}\dot{\boldsymbol{\theta}}(t) + \mathbf{K}\boldsymbol{\theta}(t) = \mathbf{T}_e(t) $$
+
+### Natural Frequencies
+
+| Mode | $f_n$ (Hz) | Description |
+|:-----|:-----------|:------------|
+| 1st | 18--35 | 1st torsion |
+| 2nd | 120--200 | 2nd torsion (bending coupling) |
+| 3rd | 350--500 | Higher torsion |
+| 4th+ | $>$ 800 | Local modes |
+
+## Campbell Diagram Analysis
+
+Traditional UPS flywheel excitation is limited to 1$\times$/2$\times$ rotational frequency. AI data center flywheels introduce broadband non-synchronous excitation:
+
+- GPU PSD continuum (10 Hz--1 kHz)
+- PWM sidebands at $f_{sw} \pm n f_e$
+
+**Design requirement**: The first torsional frequency must exceed $f_{n1} > 100$ Hz to avoid the GPU PSD high-energy band. Alternatively, virtual torsional damping via SiC DC/DC control can be employed.
