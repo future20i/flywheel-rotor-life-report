@@ -25,9 +25,9 @@
   cover-meta: (),
 
   // ---- 正文 ----
-  font-size: 10pt,
-  leading: 1.6,
-  par-spacing: 7pt,
+  font-size: 9.5pt,
+  leading: 1.4,
+  par-spacing: 5pt,
 
   // ---- 颜色 ----
   accent-color: rgb("#1A365D"),
