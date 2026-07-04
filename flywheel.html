@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>手机飞轮储能仿真 - 正弦响应</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0b0e14;
+            color: #e0e4eb;
+            margin: 0;
+            padding: 12px 12px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            letter-spacing: 0.5px;
+            color: #b3d4fc;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #8892a0;
+            text-align: center;
+            margin-top: -2px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #1e2630;
+            padding-bottom: 10px;
+        }
+        /* 画布区 */
+        .canvas-wrapper {
+            background: #12181f;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            margin-bottom: 16px;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 0.7; /* 宽高比适配手机横竖屏 */
+            background: #0f151c;
+            border-radius: 12px;
+            touch-action: none;
+        }
+        /* 实时数据卡片 */
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: #141b23;
+            border-radius: 14px;
+            padding: 10px 6px;
+            margin-bottom: 18px;
+            border: 1px solid #232c38;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #7b8799;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin-top: 2px;
+        }
+        .stat-value.omega { color: #4fc3f7; }
+        .stat-value.energy { color: #ffb74d; }
+        .stat-value.time { color: #aed581; }
+
+        /* 滑块控制区 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background: #141b23;
+            border-radius: 16px;
+            padding: 16px 14px;
+            border: 1px solid #232c38;
+        }
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        .slider-header label {
+            color: #b0c0d0;
+        }
+        .slider-header span {
+            color: #ffffff;
+            font-weight: 600;
+            background: #1e2937;
+            padding: 0 10px;
+            border-radius: 30px;
+            font-size: 13px;
+            min-width: 50px;
+            text-align: center;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 10px;
+            background: #26303e;
+            outline: none;
+            transition: background 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            cursor: pointer;
+            border: 2px solid #0b0e14;
+            box-shadow: 0 2px 8px rgba(79, 195, 247, 0.4);
+            transition: 0.1s;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-reset {
+            background: #2a3748;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 12px 0;
+            border-radius: 60px;
+            margin-top: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            letter-spacing: 1px;
+            border: 1px solid #3f4d62;
+        }
+        .btn-reset:active {
+            background: #3f4d62;
+            transform: scale(0.97);
+        }
+        .footer {
+            margin-top: 12px;
+            font-size: 11px;
+            color: #4a5568;
+            text-align: center;
+        }
+        /* 图例内嵌在canvas上，我们用HTML画一个简单的 */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            font-size: 12px;
+            margin-top: 6px;
+            color: #a0b0c0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .color-dot {
+            display: inline-block;
+            width: 12px;
+            height: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ 飞轮储能 · 正弦响应</h1>
+    <div class="subtitle">转矩正弦驱动 · 实时物理仿真</div>
+
+    <!-- 画布 -->
+    <div class="canvas-wrapper">
+        <canvas id="simCanvas"></canvas>
+    </div>
+    <!-- 图例 -->
+    <div class="legend">
+        <span class="legend-item"><span class="color-dot" style="background:#4fc3f7;"></span> 角速度 ω</span>
+        <span class="legend-item"><span class="color-dot" style="background:#ef5350;"></span> 转矩 T</span>
+        <span class="legend-item"><span class="color-dot" style="background:#ffb74d;"></span> 能量 E</span>
+    </div>
+
+    <!-- 实时数值 -->
+    <div class="stats">
+        <div class="stat-item"><div class="stat-label">时间</div><div class="stat-value time" id="dispTime">0.00s</div></div>
+        <div class="stat-item"><div class="stat-label">转速 ω</div><div class="stat-value omega" id="dispOmega">0.00</div></div>
+        <div class="stat-item"><div class="stat-label">能量 E</div><div class="stat-value energy" id="dispEnergy">0.00</div></div>
+    </div>
+
+    <!-- 滑块控制 -->
+    <div class="controls">
+        <div class="slider-group">
+            <div class="slider-header"><label>转矩幅值 (N·m)</label><span id="valAmp">2.0</span></div>
+            <input type="range" id="sliderAmp" min="0" max="5" step="0.1" value="2.0">
+        </div>
+        <div class="slider-group">
+            <div class="slider-header"><label>频率 (Hz)</label><span id="valFreq">0.5</span></div>
+            <input type="range" id="sliderFreq" min="0.1" max="2.0" step="0.1" value="0.5">
+        </div>
+        <div class="slider-group">
+            <div class="slider-header"><label>转动惯量 J</label><span id="valJ">0.50</span></div>
+            <input type="range" id="sliderJ" min="0.1" max="2.0" step="0.05" value="0.5">
+        </div>
+        <div class="slider-group">
+            <div class="slider-header"><label>摩擦系数 B</label><span id="valB">0.001</span></div>
+            <input type="range" id="sliderB" min="0" max="0.02" step="0.001" value="0.001">
+        </div>
+        <button class="btn-reset" id="resetBtn">⟳ 重置仿真 (ω=0)</button>
+    </div>
+    <div class="footer">触摸拖动滑块 · 曲线实时更新</div>
+</div>
+
+<script>
+    (function(){
+        // --- 物理参数 ---
+        const params = {
+            J: 0.5,
+            B: 0.001,
+            Tc: 0.01,      // 库仑摩擦（固定）
+            Amp: 2.0,
+            Freq: 0.5
+        };
+
+        // --- 状态 ---
+        let state = {
+            omega: 0,
+            time: 0
+        };
+
+        // --- 历史数据 (环形缓冲区) ---
+        const MAX_POINTS = 600;
+        let historyT = new Array(MAX_POINTS).fill(0);
+        let historyOmega = new Array(MAX_POINTS).fill(0);
+        let historyTorque = new Array(MAX_POINTS).fill(0);
+        let historyEnergy = new Array(MAX_POINTS).fill(0);
+        let head = 0;
+        let count = 0; // 实际数据点数
+
+        // --- DOM 引用 ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const dispTime = document.getElementById('dispTime');
+        const dispOmega = document.getElementById('dispOmega');
+        const dispEnergy = document.getElementById('dispEnergy');
+
+        const sliderAmp = document.getElementById('sliderAmp');
+        const sliderFreq = document.getElementById('sliderFreq');
+        const sliderJ = document.getElementById('sliderJ');
+        const sliderB = document.getElementById('sliderB');
+        const valAmp = document.getElementById('valAmp');
+        const valFreq = document.getElementById('valFreq');
+        const valJ = document.getElementById('valJ');
+        const valB = document.getElementById('valB');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // --- 画布尺寸自适应 (保持比例) ---
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width - 12;
+            // 保持宽高比 1:0.7
+            const height = width * 0.7;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            // 保存逻辑尺寸供绘图使用
+            canvas.logWidth = width;
+            canvas.logHeight = height;
+        }
+
+        // --- 物理更新 (欧拉积分) ---
+        function updatePhysics(dt) {
+            // 读取当前参数
+            const J = params.J;
+            const B = params.B;
+            const Tc = params.Tc;
+            const Amp = params.Amp;
+            const Freq = params.Freq;
+            const t = state.time;
+
+            // 电机转矩
+            const T_motor = Amp * Math.sin(2 * Math.PI * Freq * t);
+
+            // 损耗转矩
+            let T_loss = B * state.omega;
+            if (Math.abs(state.omega) < 0.001) {
+                // 防止库仑摩擦在零速附近震颤
+                if (Math.abs(T_motor) < Tc) {
+                    // 如果电机转矩不足以克服静摩擦，则锁死
+                    // 为了更真实，保持omega不变，但记录转矩为T_motor
+                    // 这里简化处理：如果速度极低，且电机转矩小于库仑摩擦，则速度置0
+                    if (Math.abs(T_motor) <= Tc) {
+                        state.omega = 0;
+                        // 不更新位置，直接返回
+                        return;
+                    }
+                }
+                // 否则按符号处理
+                T_loss += Tc * Math.sign(state.omega);
+            } else {
+                T_loss += Tc * Math.sign(state.omega);
+            }
+
+            // 角加速度
+            const alpha = (T_motor - T_loss) / J;
+            state.omega += alpha * dt;
+            state.time += dt;
+
+            // 防止数值爆炸 (安全限幅)
+            if (Math.abs(state.omega) > 100) state.omega = 100 * Math.sign(state.omega);
+        }
+
+        // --- 记录数据 ---
+        function recordData() {
+            const t = state.time;
+            const omega = state.omega;
+            const Amp = params.Amp;
+            const Freq = params.Freq;
+            const T_motor = Amp * Math.sin(2 * Math.PI * Freq * t);
+            const E = 0.5 * params.J * omega * omega;
+
+            historyT[head] = t;
+            historyOmega[head] = omega;
+            historyTorque[head] = T_motor;
+            historyEnergy[head] = E;
+
+            head = (head + 1) % MAX_POINTS;
+            if (count < MAX_POINTS) count++;
+        }
+
+        // --- 绘图 ---
+        function draw() {
+            const W = canvas.logWidth;
+            const H = canvas.logHeight;
+            ctx.clearRect(0, 0, W, H);
+
+            if (count < 2) {
+                ctx.fillStyle = '#4a5568';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('等待数据...', W/2, H/2);
+                return;
+            }
+
+            // 1. 准备数据 (从旧到新)
+            const len = count;
+            const startIdx = (head - len + MAX_POINTS) % MAX_POINTS;
+            const tData = [];
+            const omegaData = [];
+            const torqueData = [];
+            const energyData = [];
+
+            let minT = Infinity, maxT = -Infinity;
+            let maxOmega = 0.1, maxEnergy = 0.1;
+            let maxTorque = 0.1;
+
+            for (let i = 0; i < len; i++) {
+                const idx = (startIdx + i) % MAX_POINTS;
+                const t = historyT[idx];
+                const om = historyOmega[idx];
+                const tr = historyTorque[idx];
+                const en = historyEnergy[idx];
+                tData.push(t);
+                omegaData.push(om);
+                torqueData.push(tr);
+                energyData.push(en);
+
+                if (t < minT) minT = t;
+                if (t > maxT) maxT = t;
+                if (Math.abs(om) > maxOmega) maxOmega = Math.abs(om);
+                if (Math.abs(tr) > maxTorque) maxTorque = Math.abs(tr);
+                if (en > maxEnergy) maxEnergy = en;
+            }
+
+            // 防止除以零
+            const tRange = Math.max(maxT - minT, 0.5);
+            const omegaScale = Math.max(maxOmega, 0.5);
+            const torqueScale = Math.max(maxTorque, 0.5);
+            const energyScale = Math.max(maxEnergy, 0.5);
+
+            // 绘图边距
+            const pad = { top: 20, bottom: 28, left: 12, right: 12 };
+            const plotW = W - pad.left - pad.right;
+            const plotH = H - pad.top - pad.bottom;
+
+            // 辅助函数：物理值转像素坐标
+            const toPixel = (t, val, yMax, yMin = -yMax) => {
+                const x = pad.left + ((t - minT) / tRange) * plotW;
+                // y轴：向上为负，向下为正 (canvas坐标)
+                const yRatio = (val - yMin) / (yMax - yMin); // 0~1
+                const y = pad.top + plotH - (yRatio * plotH);
+                return { x, y };
+            };
+
+            // 画网格
+            ctx.strokeStyle = '#1e2630';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (i / 4) * plotH;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(W - pad.right, y);
+                ctx.stroke();
+            }
+
+            // 画零线 (Y=0 针对Omega和Torque)
+            const zeroY_omega = pad.top + plotH / 2;
+            ctx.strokeStyle = '#2a3748';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 6]);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, zeroY_omega);
+            ctx.lineTo(W - pad.right, zeroY_omega);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // --- 绘制曲线 ---
+            // 1. 转矩 (红色)
+            ctx.strokeStyle = '#ef5350';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < len; i++) {
+                const p = toPixel(tData[i], torqueData[i], torqueScale);
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+
+            // 2. 角速度 (蓝色)
+            ctx.strokeStyle = '#4fc3f7';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i < len; i++) {
+                const p = toPixel(tData[i], omegaData[i], omegaScale);
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+
+            // 3. 能量 (橙色) - 放在单独范围，因为能量永远>=0，我们映射到0~energyScale
+            ctx.strokeStyle = '#ffb74d';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < len; i++) {
+                const x = pad.left + ((tData[i] - minT) / tRange) * plotW;
+                const y = pad.top + plotH - ((energyData[i] / (energyScale * 1.2)) * plotH); // 留一点余量
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // 更新时间轴标签 (仅显示起始和结束)
+            ctx.fillStyle = '#6a7a8e';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(minT.toFixed(1) + 's', pad.left, H - 4);
+            ctx.fillText(maxT.toFixed(1) + 's', W - pad.right, H - 4);
+            
+            // Y轴标注 (最大值)
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#4fc3f7';
+            ctx.fillText(omegaScale.toFixed(1), pad.left - 2, pad.top + 14);
+            ctx.fillStyle = '#ef5350';
+            ctx.fillText(torqueScale.toFixed(1), pad.left - 2, pad.top + 28);
+        }
+
+        // --- 仿真循环 (使用 requestAnimationFrame) ---
+        let lastTimestamp = 0;
+        const DT = 0.008; // 物理步长约 8ms
+
+        function simulationLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const elapsed = (timestamp - lastTimestamp) / 1000; // 秒
+            lastTimestamp = timestamp;
+
+            // 固定时间步长推进物理
+            if (elapsed < 0.05) { // 防止切换标签页时大跳跃
+                let steps = Math.ceil(elapsed / DT);
+                if (steps > 10) steps = 10;
+                for (let i = 0; i < steps; i++) {
+                    updatePhysics(DT);
+                    recordData();
+                }
+            }
+
+            // 更新显示数值
+            dispTime.textContent = state.time.toFixed(2) + 's';
+            dispOmega.textContent = state.omega.toFixed(2);
+            const E = 0.5 * params.J * state.omega * state.omega;
+            dispEnergy.textContent = E.toFixed(2);
+
+            // 绘图
+            draw();
+
+            requestAnimationFrame(simulationLoop);
+        }
+
+        // --- UI 控件绑定 ---
+        function updateParams() {
+            params.Amp = parseFloat(sliderAmp.value);
+            params.Freq = parseFloat(sliderFreq.value);
+            params.J = parseFloat(sliderJ.value);
+            params.B = parseFloat(sliderB.value);
+            valAmp.textContent = params.Amp.toFixed(1);
+            valFreq.textContent = params.Freq.toFixed(1);
+            valJ.textContent = params.J.toFixed(2);
+            valB.textContent = params.B.toFixed(3);
+        }
+
+        sliderAmp.addEventListener('input', updateParams);
+        sliderFreq.addEventListener('input', updateParams);
+        sliderJ.addEventListener('input', updateParams);
+        sliderB.addEventListener('input', updateParams);
+
+        // 重置
+        resetBtn.addEventListener('click', function() {
+            state.omega = 0;
+            state.time = 0;
+            head = 0;
+            count = 0;
+            // 填充初始点
+            for (let i = 0; i < 5; i++) {
+                recordData();
+            }
+            // 更新数值显示
+            dispTime.textContent = '0.00s';
+            dispOmega.textContent = '0.00';
+            dispEnergy.textContent = '0.00';
+        });
+
+        // --- 初始化 ---
+        function init() {
+            resizeCanvas();
+            // 初始填充一些点
+            state.omega = 0;
+            state.time = 0;
+            for (let i = 0; i < 10; i++) {
+                recordData();
+                state.time += DT;
+            }
+            // 重置时间为0，避免初始偏移
+            state.time = 0;
+            head = 0;
+            count = 0;
+            for (let i = 0; i < 10; i++) {
+                recordData();
+                state.time += DT;
+            }
+            updateParams();
+            lastTimestamp = 0;
+            requestAnimationFrame(simulationLoop);
+        }
+
+        // 窗口旋转/缩放时重置画布大小
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+
+        init();
+    })();
+</script>
+</body>
+</html>
